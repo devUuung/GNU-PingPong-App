@@ -1,0 +1,41 @@
+services:
+  # flutter:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/flutter-dev.Dockerfile
+  #   volumes:
+  #     - ./flutter-app:/app
+  #   stdin_open: true
+  #   tty: true
+  #   ports:
+  #     - "38693:38693"
+  fastapi:
+    build:
+      context: .
+      dockerfile: docker/fastapi-dev.Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./fastapi-app:/app
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    env_file:
+      - ./env/api.env
+    depends_on:
+      - test-db
+    links:
+      - test-db
+    
+  test-db:
+    image: postgres:15
+    env_file:
+      - ./env/db.env
+    ports:
+      - "5432:5432"
+  # deploy-db:
+  #   image: postgres:15
+  #   environment:
+  #     POSTGRES_USER: deployuser
+  #     POSTGRES_PASSWORD: deploypass
+  #     POSTGRES_DB: deploydb
+  #   ports:
+  #     - "5433:5432"

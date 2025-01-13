@@ -1,0 +1,36 @@
+name: Test and Build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run Flutter Tests
+        run: |
+          cd flutter-app
+          flutter test
+      - name: Run FastAPI Tests
+        run: |
+          cd fastapi-app
+          pytest
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build and Push Docker Images
+        env:
+          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
+        run: |
+          echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+          docker build -t yourdockerhub/flutter-app:latest -f docker/flutter-dev.Dockerfile .
+          docker build -t yourdockerhub/fastapi-app:latest -f docker/fastapi-dev.Dockerfile .
+          docker push yourdockerhub/flutter-app:latest
+          docker push yourdockerhub/fastapi-app:latest
