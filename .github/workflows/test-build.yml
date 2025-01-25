@@ -1,36 +1,57 @@
-name: Test and Build
+name: Test and Build Docker Image
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+    paths:
+      - "fastapi-app/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "fastapi-app/**"
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./fastapi-app
+
     steps:
       - uses: actions/checkout@v3
-      - name: Run Flutter Tests
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
         run: |
-          cd flutter-app
-          flutter test
-      - name: Run FastAPI Tests
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
         run: |
-          cd fastapi-app
           pytest
 
-  build:
+  build-and-push:
     needs: test
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     steps:
       - uses: actions/checkout@v3
-      - name: Build and Push Docker Images
-        env:
-          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
-          DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
-        run: |
-          echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
-          docker build -t yourdockerhub/flutter-app:latest -f docker/flutter-dev.Dockerfile .
-          docker build -t yourdockerhub/fastapi-app:latest -f docker/fastapi-dev.Dockerfile .
-          docker push yourdockerhub/flutter-app:latest
-          docker push yourdockerhub/fastapi-app:latest
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/fastapi-dev.Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/gnu-pingpong-fastapi:latest
