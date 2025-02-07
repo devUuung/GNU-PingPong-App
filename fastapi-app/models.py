@@ -24,6 +24,7 @@ class User(SQLModel, table=True, tablename="user"):
     initial_score: float = Field(default=0)
     point: int = Field(default=0)
     is_admin: bool = Field(default=False)
+    device_id: Optional[str] = Field(default=None)
 
 
 class Game(SQLModel, table=True, tablename="game"):
