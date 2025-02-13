@@ -9,6 +9,9 @@ import 'app_bar.dart';
 // 새로 만든 공통 BottomNavigationBar
 import 'bottom_bar.dart';
 
+// 새로 만든 수정 화면 import
+import 'recruit_edit.dart'; // ★ 이 라인을 추가해 주세요
+
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -60,9 +63,7 @@ class HomePage extends StatelessWidget {
                     ),
                   ),
                 ),
-                // ... (나머지 즐겨찾기 목록)
                 const SizedBox(height: 30),
-
                 Center(
                   child: Container(
                     width: 360,
@@ -86,11 +87,11 @@ class HomePage extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (context) =>
-                                      const RecruitPostPage()),
+                                builder: (context) => const RecruitPostPage(),
+                              ),
                             );
                           },
-                          child: Text(
+                          child: const Text(
                             '글쓰기',
                             style: TextStyle(
                               color: Color(0xFF999999),
@@ -104,9 +105,8 @@ class HomePage extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 16),
-                const Center(child: Post()),
+                Center(child: Post()),
                 const SizedBox(height: 20),
               ],
             ),
@@ -114,17 +114,30 @@ class HomePage extends StatelessWidget {
         ),
       ),
 
-      // 기존 BottomNavigationBarWidget 대신 CommonBottomNavigationBar 적용
       bottomNavigationBar: const CommonBottomNavigationBar(currentPage: "home"),
     );
   }
 }
 
-class Post extends StatelessWidget {
+/// 게시글 위젯
+class Post extends StatefulWidget {
   const Post({Key? key}) : super(key: key);
 
   @override
+  State<Post> createState() => _PostState();
+}
+
+class _PostState extends State<Post> {
+  /// 삭제 여부를 저장할 플래그
+  bool _isDeleted = false;
+
+  @override
   Widget build(BuildContext context) {
+    // _isDeleted가 true라면, 완전히 빈 공간으로 대체(SizedBox.shrink).
+    if (_isDeleted) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       width: 357,
       decoration: ShapeDecoration(
@@ -151,7 +164,7 @@ class Post extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               '탁구 치실분~ (김학생)',
               style: TextStyle(
                 fontSize: 14,
@@ -162,7 +175,7 @@ class Post extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
+            const Text(
               '3월 12일 오후 2시\n동방\n참가자 수: 2 / 4\n김학생, 이학생',
               style: TextStyle(
                 fontSize: 14,
@@ -173,13 +186,23 @@ class Post extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
+
+            // 수정/삭제 버튼 Row
             Row(
               children: [
                 Row(
                   children: [
                     IconButton(
                       icon: const Icon(Icons.edit, color: Color(0xFF65558F)),
-                      onPressed: () => print('수정 버튼 클릭됨'),
+                      onPressed: () {
+                        // 수정 화면으로 이동
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RecruitEditPage(),
+                          ),
+                        );
+                      },
                     ),
                     const Text('수정'),
                   ],
@@ -189,7 +212,7 @@ class Post extends StatelessWidget {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.delete, color: Color(0xFF65558F)),
-                      onPressed: () => print('삭제 버튼 클릭됨'),
+                      onPressed: () => _confirmDelete(context),
                     ),
                     const Text('삭제'),
                   ],
@@ -200,5 +223,35 @@ class Post extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// 삭제 확인 다이얼로그 표시 후, '예' 선택 시 Post 위젯을 숨김 처리
+  Future<void> _confirmDelete(BuildContext context) async {
+    final bool? result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('삭제 확인'),
+          content: const Text('정말로 삭제하시겠습니까?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false), // '아니오' → false
+              child: const Text('아니오'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true), // '예' → true
+              child: const Text('예'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // 사용자가 '예'를 눌러 result == true라면, _isDeleted를 true로 바꿔서 화면에서 제거
+    if (result == true) {
+      setState(() {
+        _isDeleted = true;
+      });
+    }
   }
 }
