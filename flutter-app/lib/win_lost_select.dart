@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-
-// 가정: user_list.dart가 존재하고, UserListPage가 구현되어 있다고 가정
 import 'user_list.dart';
 
 /// 승패 선택 페이지
@@ -19,8 +17,8 @@ class WinLoseSelect extends StatefulWidget {
 }
 
 class _WinLoseSelectState extends State<WinLoseSelect> {
-  // 현재 선택된 승자 (myName / otherName / null)
-  String? _winner;
+  /// "myName" 혹은 "otherName"을 저장해 두 버튼 중 하나만 선택되도록 한다.
+  String? _winnerTag; // 'myName' | 'otherName' | null
 
   @override
   Widget build(BuildContext context) {
@@ -37,15 +35,38 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
 
       // 본문
       body: SafeArea(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // (1) "내 이름" 버튼
-            _buildNameButton(widget.myName),
-            const SizedBox(height: 20),
-            // (2) "상대 이름" 버튼
-            _buildNameButton(widget.otherName),
-          ],
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // 왼쪽 버튼
+                  Flexible(
+                    child: Container(
+                      margin: const EdgeInsets.only(left: 16),
+                      child: _buildNameButton(
+                        label: widget.myName,
+                        tag: 'myName',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  // 오른쪽 버튼
+                  Flexible(
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 16),
+                      child: _buildNameButton(
+                        label: widget.otherName,
+                        tag: 'otherName',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
 
@@ -53,10 +74,10 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         child: ElevatedButton(
-          onPressed: _winner == null
+          onPressed: _winnerTag == null
               ? null
               : () {
-                  // (3) 확인 버튼 누르면 UserListPage로 이동
+                  // 확인 버튼 누르면 UserListPage로 이동 (예시)
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
@@ -65,7 +86,7 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
                   );
                 },
           style: ElevatedButton.styleFrom(
-            backgroundColor: _winner == null ? Colors.grey : Colors.blue,
+            backgroundColor: _winnerTag == null ? Colors.grey : Colors.blue,
             minimumSize: const Size(double.infinity, 48),
           ),
           child: const Text('확인'),
@@ -74,21 +95,28 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
     );
   }
 
-  /// 이름 버튼 생성: 선택 상태에 따라 색깔/스타일이 달라짐
-  Widget _buildNameButton(String name) {
-    final bool isSelected = (_winner == name);
+  /// 버튼 생성
+  ///  - [label]: 버튼에 보여줄 텍스트 (예: "홍길동")
+  ///  - [tag]   : "myName" / "otherName" 등 내부 구분용
+  Widget _buildNameButton({
+    required String label,
+    required String tag,
+  }) {
+    final bool isSelected = (_winnerTag == tag);
 
     return GestureDetector(
       onTap: () {
         setState(() {
-          // 버튼 탭 시 승자를 name으로 설정
-          _winner = name;
+          // 버튼을 누르면 내 쪽('myName') / 상대 쪽('otherName')으로 구분
+          _winnerTag = tag;
         });
       },
       child: Container(
-        width: 200,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        margin: const EdgeInsets.symmetric(horizontal: 16),
+        constraints: const BoxConstraints(
+          minWidth: 130, // 최소 가로 길이
+          minHeight: 60, // 최소 세로 길이
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
         decoration: BoxDecoration(
           color: isSelected ? Colors.amber : Colors.white,
           borderRadius: BorderRadius.circular(8),
@@ -97,12 +125,13 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
             width: 1,
           ),
         ),
-        child: Text(
-          name,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 18,
-            color: isSelected ? Colors.black : Colors.grey[800],
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 18,
+              color: isSelected ? Colors.black : Colors.grey[800],
+            ),
           ),
         ),
       ),
