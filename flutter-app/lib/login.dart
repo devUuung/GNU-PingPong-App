@@ -2,13 +2,14 @@ import 'dart:io'; // 기기 플랫폼 판별용
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-// 기기 정보 가져오기
-import 'package:device_info_plus/device_info_plus.dart';
-// 로컬에 자동로그인 여부나 기기정보 저장 시
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'home.dart';
 import 'signup.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'api_config.dart';
+import 'package:flutter_app/dialog.dart';
+
+// FlutterSecureStorage 인스턴스 생성 (보통 전역에서 한 번 생성)
+final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -19,119 +20,92 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   // 디버그 모드 on/off (예: true이면 디버깅 모드)
-  final bool _isDebugMode = true;
+  final bool _isDebugMode = false;
 
   // 학번, 비밀번호 입력 컨트롤러
   final _studentIdController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  // 기기 식별자(간단 예시)
-  String? _deviceIdentifier;
-
   @override
   void initState() {
     super.initState();
-    _loadDeviceInfo(); // 기기 정보 조회
-    _checkAutoLogin(); // 자동 로그인 시도
+    _checkAutoLogin();
   }
 
-  /// 1) 기기 정보 읽기
-  Future<void> _loadDeviceInfo() async {
-    final deviceInfo = DeviceInfoPlugin();
-
-    // 안드로이드 / iOS 등을 dart:io의 Platform 으로 구분
-    if (Platform.isAndroid) {
-      AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-      // 최신 device_info_plus에는 androidId가 없으므로, id 사용
-      _deviceIdentifier = androidInfo.id; // 빌드 ID 등
-    } else if (Platform.isIOS) {
-      IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
-      _deviceIdentifier = iosInfo.identifierForVendor; // iOS 기기 고유 ID
-    } else {
-      // 웹, Windows, macOS 등 다른 플랫폼은 별도 처리
-      _deviceIdentifier = 'unknown_device';
-    }
-  }
-
-  /// 2) 자동 로그인 여부 체크
   Future<void> _checkAutoLogin() async {
-    // 디버그 모드라면, 자동 로그인 체크 과정 자체를 생략할 수도 있음
-    if (_isDebugMode) {
-      // 디버그 모드에서는 자동 로그인 여부 상관없이 그냥 무시
-      return;
-    }
+    try {
+      final token = await secureStorage.read(key: 'access_token');
+      if (token != null && token.isNotEmpty) {
+        // 토큰 유효성 검사 API 호출
+        final url = ApiConfig.validateToken;
+        final response = await http.post(
+          Uri.parse(url),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
 
-    final prefs = await SharedPreferences.getInstance();
-    final savedDeviceId = prefs.getString('deviceId');
-    final savedStudentId = prefs.getString('studentId');
-
-    // 만약 로컬에 저장된 'deviceId'와 'studentId'가 존재한다면,
-    // "이미 동일 기기=자동로그인" 로직으로 간단 처리 가능
-    if (savedDeviceId != null && savedStudentId != null) {
-      if (savedDeviceId == _deviceIdentifier) {
-        // 이미 내 기기로 로그인했던 기록 있음 => 자동 로그인
-        _goHome(); // HomePage로 이동
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          // API에서 valid와 함께 user_id를 반환한다고 가정
+          if (data['valid'] == true) {
+            final userId = data['user_id'];
+            debugPrint('토큰이 유효합니다. user_id: $userId');
+            _goHome();
+          } else {
+            debugPrint('토큰이 유효하지 않습니다.');
+          }
+        } else {
+          debugPrint('서버 통신 에러: ${response.statusCode}');
+        }
       }
+    } catch (e) {
+      debugPrint('자동 로그인 체크 에러: $e');
     }
   }
 
-  /// 3) 로그인 버튼 클릭 시 API 요청
   Future<void> _login() async {
-    // 디버그 모드에서는 바로 접속 성공 처리
-    if (_isDebugMode) {
-      // 학번, 비밀번호 입력 여부 무시하고 바로 홈으로 이동
-      _goHome();
-      return;
-    }
-
     final studentId = _studentIdController.text.trim();
     final password = _passwordController.text.trim();
 
     if (studentId.isEmpty || password.isEmpty) {
-      _showErrorDialog('학번과 비밀번호를 입력해주세요.');
+      showErrorDialog(context, '학번과 비밀번호를 입력해주세요.');
       return;
     }
 
-    // 실제 로그인 API 엔드포인트 (예시 URL)
-    const url = 'https://example.com/api/login';
-
+    final url = ApiConfig.login;
     try {
       final response = await http.post(
         Uri.parse(url),
-        body: {
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
           'student_id': studentId,
           'password': password,
-          'device_id': _deviceIdentifier ?? '',
-        },
+        }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-
-        // 예: { "success": true, "message": "...", "deviceMatch": true/false }
         if (data['success'] == true) {
-          // 서버측에서 "기기정보 일치" 여부를 준다면
-          bool deviceMatch = data['deviceMatch'] ?? false;
-
-          // 로컬 저장
-          final prefs = await SharedPreferences.getInstance();
-          if (deviceMatch) {
-            await prefs.setString('deviceId', _deviceIdentifier ?? '');
-            await prefs.setString('studentId', studentId);
+          final jwtToken = data['access_token'];
+          if (jwtToken == null) {
+            showErrorDialog(context, 'JWT 토큰이 없습니다.');
+            return;
           }
-
-          // 로그인 성공 → 홈화면 이동
+          // 기존 토큰 삭제
+          await secureStorage.delete(key: 'access_token');
+          // 새 토큰 저장
+          await secureStorage.write(key: 'access_token', value: jwtToken);
           _goHome();
         } else {
-          _showErrorDialog('로그인 정보가 틀렸습니다.');
+          showErrorDialog(context, '로그인 정보가 틀렸습니다.');
         }
       } else {
-        // HTTP 오류
-        _showErrorDialog('서버 통신 에러: ${response.statusCode}');
+        showErrorDialog(context, '서버 통신 에러: ${response.statusCode}');
       }
     } catch (e) {
-      // 예외 발생
-      _showErrorDialog('로그인 중 오류 발생: $e');
+      showErrorDialog(context, '로그인 중 오류 발생: $e');
     }
   }
 
@@ -140,25 +114,6 @@ class _LoginPageState extends State<LoginPage> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const HomePage()),
-    );
-  }
-
-  /// 다이얼로그로 에러 메시지 표시
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('오류'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('확인'),
-            ),
-          ],
-        );
-      },
     );
   }
 

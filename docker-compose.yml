@@ -26,16 +26,8 @@ services:
       - test-db
     
   test-db:
-    image: postgres:15
+    image: postgres-ko:15
     env_file:
       - ./env/db.env
     ports:
       - "5432:5432"
-  # deploy-db:
-  #   image: postgres:15
-  #   environment:
-  #     POSTGRES_USER: deployuser
-  #     POSTGRES_PASSWORD: deploypass
-  #     POSTGRES_DB: deploydb
-  #   ports:
-  #     - "5433:5432"

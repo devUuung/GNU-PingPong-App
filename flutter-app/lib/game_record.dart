@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'bottom_bar.dart';
-import 'find_user.dart';
+import 'package:flutter_app/widgets/bottom_bar.dart';
+import 'package:flutter_app/find_user.dart';
 
 // 경기 기록 페이지
 class GamesPage extends StatefulWidget {

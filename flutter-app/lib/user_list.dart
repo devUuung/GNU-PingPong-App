@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'bottomNavigationBar.dart';
+import 'widgets/bottomNavigationBar.dart';
 import 'home.dart'; // 홈
 import 'game_record.dart'; // 경기 기록
 import 'settings.dart'; // 설정
-import 'bottom_bar.dart';
+import 'widgets/bottom_bar.dart';
 
 class UserListPage extends StatefulWidget {
   const UserListPage({Key? key}) : super(key: key);

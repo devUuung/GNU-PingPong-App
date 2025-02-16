@@ -6,7 +6,6 @@ sqlalchemy
 alembic
 pydantic[email]
 python-dotenv
-pytest
 httpx
 psycopg2-binary
 sqlmodel
@@ -14,3 +13,5 @@ pytest==8.0.0
 httpx==0.26.0
 pytest-asyncio==0.23.5
 pytest-cov==4.1.0
+python-jose[cryptography]
+python-multipart

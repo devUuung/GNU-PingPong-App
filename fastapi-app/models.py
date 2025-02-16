@@ -3,6 +3,8 @@
 from datetime import datetime
 from sqlmodel import Field, SQLModel, create_engine, Session, select
 import os
+import time
+from sqlalchemy.exc import OperationalError
 
 from fastapi import HTTPException
 from typing import Optional
@@ -24,7 +26,7 @@ class User(SQLModel, table=True, tablename="user"):
     initial_score: float = Field(default=0)
     point: int = Field(default=0)
     is_admin: bool = Field(default=False)
-    device_id: Optional[str] = Field(default=None)
+    profile_image: Optional[str] = Field(default=None)
 
 
 class Game(SQLModel, table=True, tablename="game"):
@@ -67,8 +69,22 @@ class PostParticipant(SQLModel, table=True, tablename="post_participant"):
 # 데이터베이스 엔진 생성 (여기서는 SQLite 메모리 데이터베이스 사용)
 engine = create_engine(os.getenv("CONN_URL"))
 
-# 데이터베이스 테이블 생성
-SQLModel.metadata.create_all(engine)
+def create_db_and_tables(retries: int = 10, delay: int = 2):
+    """데이터베이스 연결에 실패할 경우 재시도하여 테이블을 생성합니다."""
+    attempt = 0
+    while attempt < retries:
+        try:
+            SQLModel.metadata.create_all(engine)
+            print("DB 연결 성공 및 테이블 생성 완료.")
+            return
+        except OperationalError as e:
+            attempt += 1
+            print(f"DB 연결 실패, 재시도 {attempt}/{retries} (2초 후 재시도)...", e)
+            time.sleep(delay)
+    raise Exception("여러 번 재시도 후에도 DB 연결에 실패했습니다.")
+
+# DB 연결 재시도 후 테이블 생성
+create_db_and_tables()
 
 
 def create_user(
@@ -76,6 +92,7 @@ def create_user(
     phone_number: str,
     password: str,
     student_id: int,
+    device_id: Optional[str] = None,  # device_id 추가
 ):
     with Session(engine) as session:
         user = User(
@@ -83,6 +100,7 @@ def create_user(
             phone_number=phone_number,
             password=password,
             student_id=student_id,
+            device_id=device_id,  # device_id 설정
         )
         session.add(user)
         session.commit()
