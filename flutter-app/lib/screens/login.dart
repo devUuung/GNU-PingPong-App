@@ -5,8 +5,9 @@ import 'dart:convert';
 import 'home.dart';
 import 'signup.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'api_config.dart';
+import '../api_config.dart';
 import 'package:flutter_app/dialog.dart';
+import 'package:flutter_app/service/token_valid.dart';
 
 // FlutterSecureStorage 인스턴스 생성 (보통 전역에서 한 번 생성)
 final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
@@ -34,31 +35,11 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _checkAutoLogin() async {
     try {
-      final token = await secureStorage.read(key: 'access_token');
-      if (token != null && token.isNotEmpty) {
-        // 토큰 유효성 검사 API 호출
-        final url = ApiConfig.validateToken;
-        final response = await http.post(
-          Uri.parse(url),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        );
-
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          // API에서 valid와 함께 user_id를 반환한다고 가정
-          if (data['valid'] == true) {
-            final userId = data['user_id'];
-            debugPrint('토큰이 유효합니다. user_id: $userId');
-            _goHome();
-          } else {
-            debugPrint('토큰이 유효하지 않습니다.');
-          }
-        } else {
-          debugPrint('서버 통신 에러: ${response.statusCode}');
-        }
+      final result = await validateToken();
+      debugPrint('validateToken 결과: $result'); // 결과 로그 출력
+      if (result['isValid'] == true) {
+        print('자동 로그인 성공');
+        _goHome();
       }
     } catch (e) {
       debugPrint('자동 로그인 체크 에러: $e');

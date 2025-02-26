@@ -4,5 +4,7 @@ class ApiConfig {
   static const String signUp = '$baseUrl/signup';
   static const String login = '$baseUrl/login';
   static const String userinfo = '$baseUrl/userinfo';
+  static const String allUsersInfo = '$baseUrl/usersinfo';
   static const String validateToken = '$baseUrl/validateToken';
+  static const String gamesinfo = '$baseUrl/gamesinfo';
 }

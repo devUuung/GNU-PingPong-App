@@ -1,17 +1,15 @@
+// lib/screens/home.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_app/user_list.dart';
-import 'package:flutter_app/game_record.dart';
-import 'package:flutter_app/settings.dart';
-import 'package:flutter_app/recruit_post.dart';
-
-// 공통 AppBar import
+import 'package:flutter_app/screens/user_list.dart';
+import 'package:flutter_app/screens/games.dart';
+import 'package:flutter_app/screens/profile.dart';
+import 'package:flutter_app/screens/post_create.dart';
 import 'package:flutter_app/widgets/app_bar.dart';
-// 새로 만든 공통 BottomNavigationBar
 import 'package:flutter_app/widgets/bottom_bar.dart';
-
-// 새로 만든 수정 화면 import
-import 'package:flutter_app/recruit_edit.dart'; // ★ 이 라인을 추가해 주세요
+import 'package:flutter_app/screens/post_edit.dart';
 import 'package:flutter_app/widgets/post.dart';
+// 즐겨찾기 위젯 import
+import 'package:flutter_app/widgets/favorite_users_widget.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -19,9 +17,7 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // CommonAppBar: 현재 페이지는 "home"
       appBar: const CommonAppBar(currentPage: "home"),
-
       body: SingleChildScrollView(
         child: Center(
           child: Container(
@@ -30,6 +26,7 @@ class HomePage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 34),
+                // 즐겨찾기 섹션 제목
                 const Padding(
                   padding: EdgeInsets.only(left: 18.0),
                   child: Align(
@@ -46,32 +43,18 @@ class HomePage extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                const Padding(
-                  padding: EdgeInsets.only(left: 18.0, bottom: 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '김학생 / 100승 100패 / 승률 50% / 게임수 200회',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        height: 1.50,
-                        letterSpacing: 0.15,
-                        fontFamily: 'Roboto',
-                      ),
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 10),
+                // 즐겨찾기된 유저 목록을 표시하는 위젯
+                const FavoriteUsersWidget(),
                 const SizedBox(height: 30),
+                // 모집 공고 영역
                 Center(
                   child: Container(
                     width: 360,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           '모집 공고',
                           style: TextStyle(
                             color: Colors.black,
@@ -84,7 +67,6 @@ class HomePage extends StatelessWidget {
                         const SizedBox(width: 8),
                         TextButton(
                           onPressed: () {
-                            // Navigator.push를 통해 글쓰기 페이지로 이동
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -114,7 +96,6 @@ class HomePage extends StatelessWidget {
           ),
         ),
       ),
-
       bottomNavigationBar: const CommonBottomNavigationBar(currentPage: "home"),
     );
   }

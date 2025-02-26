@@ -1,22 +1,38 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
-import 'login.dart'; // login.dart 파일을 import 합니다.
+import 'package:provider/provider.dart';
+import 'package:flutter_app/providers/games_info_provider.dart';
+import 'package:flutter_app/providers/users_info_provider.dart';
+import 'package:flutter_app/providers/star_users_info_provider.dart';
+import 'package:flutter_app/screens/login.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 void main() {
-  runApp(const MyApp());
+  initializeDateFormatting('ko_KR');
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => GamesInfoProvider()),
+        ChangeNotifierProvider(create: (_) => UsersInfoProvider()),
+        ChangeNotifierProvider(create: (_) => StarUsersInfoProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'GNU-PingPong-App',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+        primarySwatch: Colors.blue,
       ),
-      home: const LoginPage(), // 첫 화면을 LoginPage로 설정합니다.
+      home: const LoginPage(),
     );
   }
 }

@@ -8,6 +8,7 @@ from sqlalchemy.exc import OperationalError
 
 from fastapi import HTTPException
 from typing import Optional
+from pydantic import BaseModel
 
 
 class User(SQLModel, table=True, tablename="user"):
@@ -27,12 +28,16 @@ class User(SQLModel, table=True, tablename="user"):
     point: int = Field(default=0)
     is_admin: bool = Field(default=False)
     profile_image: Optional[str] = Field(default=None)
+    status_message: Optional[str] = Field(default="안녕하세요!")
+    device_id: Optional[str] = Field(default=None)
 
 
 class Game(SQLModel, table=True, tablename="game"):
     game_id: int = Field(primary_key=True)
     winner_id: int = Field(foreign_key="user.user_id")
     loser_id: int = Field(foreign_key="user.user_id")
+    winner_name: str = Field(nullable=False)
+    loser_name: str = Field(nullable=False)
     plus_score: int = Field(default=0)
     minus_score: int = Field(default=0)
     created_at: datetime = Field(default=datetime.now())
@@ -69,6 +74,7 @@ class PostParticipant(SQLModel, table=True, tablename="post_participant"):
 # 데이터베이스 엔진 생성 (여기서는 SQLite 메모리 데이터베이스 사용)
 engine = create_engine(os.getenv("CONN_URL"))
 
+
 def create_db_and_tables(retries: int = 10, delay: int = 2):
     """데이터베이스 연결에 실패할 경우 재시도하여 테이블을 생성합니다."""
     attempt = 0
@@ -83,6 +89,7 @@ def create_db_and_tables(retries: int = 10, delay: int = 2):
             time.sleep(delay)
     raise Exception("여러 번 재시도 후에도 DB 연결에 실패했습니다.")
 
+
 # DB 연결 재시도 후 테이블 생성
 create_db_and_tables()
 
@@ -92,7 +99,9 @@ def create_user(
     phone_number: str,
     password: str,
     student_id: int,
-    device_id: Optional[str] = None,  # device_id 추가
+    device_id: Optional[str] = None,
+    status_message: Optional[str] = "안녕하세요!",
+    profile_image: Optional[str] = None,
 ):
     with Session(engine) as session:
         user = User(
@@ -100,7 +109,9 @@ def create_user(
             phone_number=phone_number,
             password=password,
             student_id=student_id,
-            device_id=device_id,  # device_id 설정
+            device_id=device_id,
+            status_message=status_message,
+            profile_image=profile_image,
         )
         session.add(user)
         session.commit()
@@ -108,9 +119,23 @@ def create_user(
         return user
 
 
+def read_users_by_all():
+    with Session(engine) as session:
+        users = session.exec(select(User)).all()
+        return users
+
+
 def read_user_by_user_id(user_id: int):
     with Session(engine) as session:
         user = session.get(User, user_id)
+        return user
+
+
+def read_user_by_phone_number(phone_number: str):
+    with Session(engine) as session:
+        user = session.exec(
+            select(User).where(User.phone_number == phone_number)
+        ).first()
         return user
 
 
@@ -121,27 +146,12 @@ def read_user_by_student_id(student_id: int):
         return user
 
 
-def update_user(
-    user_id: int,
-    username: str = None,
-    phone_number: str = None,
-    password: str = None,
-    student_id: int = None,
-):
+def update_user(user, updated_fields: dict):
     with Session(engine) as session:
-        user = session.get(User, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        if username is not None:
-            user.username = username
-        if phone_number is not None:
-            user.phone_number = phone_number
-        if password is not None:
-            user.password = password
-        if student_id is not None:
-            user.student_id = student_id
-
+        # user 전체 대신 user.user_id를 식별자로 사용합니다.
+        user = session.get(User, user.user_id)
+        for field, value in updated_fields.items():
+            setattr(user, field, value)
         session.commit()
         session.refresh(user)
         return user
@@ -175,27 +185,42 @@ def create_post(
             content=content,
             title=title,
         )
+
+        # 먼저 post를 저장하여 post_id를 생성합니다
+        session.add(post)
+        session.commit()
+        session.refresh(post)
+
+        # post_id가 생성된 후에 post_participant를 생성합니다
         post_participant = PostParticipant(
             post_id=post.post_id,
             user_id=writer_id,
         )
 
-        session.add(post)
         session.add(post_participant)
         session.commit()
-        session.refresh(post)
         session.refresh(post_participant)
+
         return post
 
 
 # Game CRUD 함수들
-def create_game(winner_id: int, loser_id: int, plus_score: int, minus_score: int):
+def create_game(
+    winner_id: int,
+    loser_id: int,
+    plus_score: int,
+    minus_score: int,
+    winner_name: str,
+    loser_name: str,
+):
     with Session(engine) as session:
         game = Game(
             winner_id=winner_id,
             loser_id=loser_id,
             plus_score=plus_score,
             minus_score=minus_score,
+            winner_name=winner_name,
+            loser_name=loser_name,
         )
         session.add(game)
         session.commit()
@@ -216,6 +241,12 @@ def read_games_by_user_id(user_id: int):
         games = session.exec(
             select(Game).where((Game.winner_id == user_id) | (Game.loser_id == user_id))
         ).all()
+        return games
+
+
+def read_games_by_all():
+    with Session(engine) as session:
+        games = session.exec(select(Game)).all()
         return games
 
 

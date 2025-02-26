@@ -1,14 +1,4 @@
 services:
-  # flutter:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/flutter-dev.Dockerfile
-  #   volumes:
-  #     - ./flutter-app:/app
-  #   stdin_open: true
-  #   tty: true
-  #   ports:
-  #     - "38693:38693"
   fastapi:
     build:
       context: .
