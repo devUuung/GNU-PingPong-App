@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/game_service.dart';
+import '../providers/users_info_provider.dart';
+import '../services/token_service.dart';
 import 'user_list.dart';
-import 'package:flutter_app/service/create_game.dart';
-import 'package:flutter_app/providers/users_info_provider.dart';
-import 'package:flutter_app/service/token_valid.dart';
+import 'games.dart';
 
 class WinLoseSelect extends StatefulWidget {
-  final String otherName;
-  final int otherUserId; // 상대방의 user_id
   final String myName;
-  final int myUserId;
+  final String otherName;
+  final int myId;
+  final int otherId;
 
   const WinLoseSelect({
     Key? key,
     required this.myName,
-    required this.myUserId,
     required this.otherName,
-    required this.otherUserId,
+    required this.myId,
+    required this.otherId,
   }) : super(key: key);
 
   @override
@@ -112,10 +113,8 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
   /// '확인' 버튼 누르면 실행되는 로직
   Future<void> _onConfirm(BuildContext context) async {
     // 선택 결과에 따라 승자와 패자의 id 결정
-    final winnerId =
-        _winnerTag == 'myName' ? widget.myUserId : widget.otherUserId;
-    final loserId =
-        _winnerTag == 'myName' ? widget.otherUserId : widget.myUserId;
+    final winnerId = _winnerTag == 'myName' ? widget.myId : widget.otherId;
+    final loserId = _winnerTag == 'myName' ? widget.otherId : widget.myId;
 
     // 점수 변화 값 (필요에 따라 조정 가능)
     const plusScore = 1;
@@ -136,12 +135,12 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
     );
 
     if (success) {
-      // 경기 생성 성공 시 UserListPage로 이동
+      // 경기 생성 성공 시 경기기록 화면으로 이동
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => const UserListPage(),
+          builder: (_) => const GamesPage(),
         ),
       );
     } else {

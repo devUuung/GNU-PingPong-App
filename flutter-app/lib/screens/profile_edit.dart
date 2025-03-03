@@ -63,10 +63,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       if (userInfo != null) {
         setState(() {
-          _initialNickname = userInfo['username'] ?? '';
-          _initialStatusMsg = userInfo['status_message'] ?? '';
+          _initialNickname = userInfo.username ?? '';
+          _initialStatusMsg = userInfo.statusMessage ?? '';
           _profileImageUrl =
-              userInfo['profile_image_url'] ?? _defaultProfileImageUrl;
+              userInfo.profileImageUrl ?? _defaultProfileImageUrl;
 
           // 컨트롤러에 초기값 설정
           _nicknameController.text = _initialNickname;
@@ -176,7 +176,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
       final userId = validateData['user_id'];
 
-      // PATCH 요청을 보낼 URL 구성 (userinfo/{user_id})
+      // PUT 요청을 보낼 URL 구성 (userinfo/{user_id})
       final url = '${ApiConfig.userinfo}/$userId';
       final uri = Uri.parse(url);
 
@@ -185,8 +185,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
         "Authorization": "Bearer $token",
       };
 
-      // 항상 MultipartRequest 사용
-      var request = http.MultipartRequest("PATCH", uri);
+      // 항상 MultipartRequest 사용하되, 메서드를 PUT으로 변경
+      var request = http.MultipartRequest("PUT", uri);
       request.headers.addAll(headers);
       updatedFields.forEach((key, value) {
         request.fields[key] = value;

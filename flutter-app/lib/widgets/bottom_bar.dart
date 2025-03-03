@@ -15,13 +15,20 @@ class CommonBottomNavigationBar extends StatelessWidget {
   }) : super(key: key);
 
   void _onItemTapped(BuildContext context, int index) {
+    // 현재 페이지와 동일한 페이지를 선택한 경우 아무 작업도 하지 않음
+    if ((index == 0 && currentPage == "home") ||
+        (index == 1 && currentPage == "userList") ||
+        (index == 2 && currentPage == "gameRecord") ||
+        (index == 3 && currentPage == "settings")) {
+      return;
+    }
+
     switch (index) {
       case 0: // 홈
-        // 이미 홈이면 아무 동작도 안 할 수도 있고,
-        // 혹은 pushReplacement를 통해 홈으로 이동할 수도 있음
-        Navigator.pushReplacement(
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const HomePage()),
+          (route) => false, // 모든 이전 경로 제거
         );
         break;
       case 1: // 회원목록

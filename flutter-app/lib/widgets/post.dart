@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/screens/post_edit.dart';
-import 'package:flutter_app/service/token_valid.dart';
+import 'package:flutter_app/services/token_service.dart';
 import 'package:flutter_app/api_config.dart';
-import 'package:flutter_app/dialog.dart';
+import 'package:flutter_app/dialog.dart' as app_dialog;
+import 'package:flutter_app/utils/index.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -38,37 +39,42 @@ class _PostState extends State<Post> {
 
     try {
       // 현재 사용자 ID 가져오기
-      final tokenResult = await validateToken();
+      final tokenResult = await TokenService().validateToken();
       if (tokenResult['isValid']) {
         _currentUserId = tokenResult['user_id'];
       }
 
       // 모집공고 목록 가져오기
       final token = await _secureStorage.read(key: 'access_token');
-      final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/recruit/posts'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final client = http.Client();
+      try {
+        final response = await client.get(
+          Uri.parse('${ApiConfig.baseUrl}/recruit/posts'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        ).timeout(const Duration(seconds: 15));
 
-      final responseData = jsonDecode(response.body);
+        final responseData = jsonDecode(response.body);
 
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        setState(() {
-          _posts = List<Map<String, dynamic>>.from(responseData['posts']);
-          _isLoading = false;
-        });
-      } else {
-        showErrorDialog(
-            context, responseData['message'] ?? '모집공고를 불러오는데 실패했습니다.');
-        setState(() {
-          _isLoading = false;
-        });
+        if (response.statusCode == 200 && responseData['success'] == true) {
+          setState(() {
+            _posts = List<Map<String, dynamic>>.from(responseData['posts']);
+            _isLoading = false;
+          });
+        } else {
+          app_dialog.showErrorDialog(
+              context, responseData['message'] ?? '모집공고를 불러오는데 실패했습니다.');
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      } finally {
+        client.close();
       }
     } catch (e) {
-      showErrorDialog(context, '오류가 발생했습니다: $e');
+      ErrorHandler.showErrorDialog(context, e);
       setState(() {
         _isLoading = false;
       });
@@ -96,10 +102,11 @@ class _PostState extends State<Post> {
         );
         _fetchPosts(); // 목록 새로고침
       } else {
-        showErrorDialog(context, responseData['message'] ?? '모집공고 삭제에 실패했습니다.');
+        app_dialog.showErrorDialog(
+            context, responseData['message'] ?? '모집공고 삭제에 실패했습니다.');
       }
     } catch (e) {
-      showErrorDialog(context, '오류가 발생했습니다: $e');
+      app_dialog.showErrorDialog(context, '오류가 발생했습니다: $e');
     }
   }
 
@@ -107,27 +114,33 @@ class _PostState extends State<Post> {
   Future<void> _joinPost(int postId) async {
     try {
       final token = await _secureStorage.read(key: 'access_token');
-      final response = await http.post(
-        Uri.parse(
-            '${ApiConfig.baseUrl}/recruit/post/$postId/join?user_id=$_currentUserId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final client = http.Client();
+      try {
+        final response = await client.post(
+          Uri.parse(
+              '${ApiConfig.baseUrl}/recruit/post/$postId/join?user_id=$_currentUserId'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        ).timeout(const Duration(seconds: 15));
 
-      final responseData = jsonDecode(response.body);
+        final responseData = jsonDecode(response.body);
 
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('모집공고에 참가했습니다.')),
-        );
-        _fetchPosts(); // 목록 새로고침
-      } else {
-        showErrorDialog(context, responseData['message'] ?? '모집공고 참가에 실패했습니다.');
+        if (response.statusCode == 200 && responseData['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('모집공고에 참가했습니다.')),
+          );
+          _fetchPosts(); // 목록 새로고침
+        } else {
+          app_dialog.showErrorDialog(
+              context, responseData['message'] ?? '모집공고 참가에 실패했습니다.');
+        }
+      } finally {
+        client.close();
       }
     } catch (e) {
-      showErrorDialog(context, '오류가 발생했습니다: $e');
+      app_dialog.showErrorDialog(context, '오류가 발생했습니다: $e');
     }
   }
 
@@ -135,28 +148,33 @@ class _PostState extends State<Post> {
   Future<void> _leavePost(int postId) async {
     try {
       final token = await _secureStorage.read(key: 'access_token');
-      final response = await http.delete(
-        Uri.parse(
-            '${ApiConfig.baseUrl}/recruit/post/$postId/leave?user_id=$_currentUserId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final client = http.Client();
+      try {
+        final response = await client.delete(
+          Uri.parse(
+              '${ApiConfig.baseUrl}/recruit/post/$postId/leave?user_id=$_currentUserId'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        ).timeout(const Duration(seconds: 15));
 
-      final responseData = jsonDecode(response.body);
+        final responseData = jsonDecode(response.body);
 
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('모집공고 참가를 취소했습니다.')),
-        );
-        _fetchPosts(); // 목록 새로고침
-      } else {
-        showErrorDialog(
-            context, responseData['message'] ?? '모집공고 참가 취소에 실패했습니다.');
+        if (response.statusCode == 200 && responseData['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('모집공고 참가를 취소했습니다.')),
+          );
+          _fetchPosts(); // 목록 새로고침
+        } else {
+          app_dialog.showErrorDialog(
+              context, responseData['message'] ?? '모집공고 참가 취소에 실패했습니다.');
+        }
+      } finally {
+        client.close();
       }
     } catch (e) {
-      showErrorDialog(context, '오류가 발생했습니다: $e');
+      ErrorHandler.showErrorDialog(context, e);
     }
   }
 

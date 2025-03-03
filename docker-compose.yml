@@ -16,7 +16,7 @@ services:
       - test-db
     
   test-db:
-    image: postgres-ko:15
+    image: postgres:15
     env_file:
       - ./env/db.env
     ports:

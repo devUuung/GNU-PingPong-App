@@ -13,6 +13,16 @@
     <!-- 안드로이드 13(API 33) 이상이라면 아래를 추가해도 됩니다. -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
+    <!-- 블루투스 권한 -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    
+    <!-- 안드로이드 12 이상을 위한 블루투스 권한 -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
     <application
         android:label="flutter_app"
         android:name="${applicationName}"

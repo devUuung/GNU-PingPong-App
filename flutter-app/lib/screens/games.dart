@@ -1,11 +1,11 @@
 // lib/screens/games.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_app/providers/games_info_provider.dart';
-import 'package:flutter_app/providers/star_users_info_provider.dart';
-import 'package:flutter_app/widgets/bottom_bar.dart';
-import 'package:flutter_app/screens/find_user.dart';
-import 'package:flutter_app/service/token_valid.dart';
+import '../providers/games_info_provider.dart';
+import '../providers/star_users_info_provider.dart';
+import '../widgets/bottom_bar.dart';
+import 'find_user.dart';
+import '../services/token_service.dart';
 
 class GamesPage extends StatefulWidget {
   const GamesPage({Key? key}) : super(key: key);
@@ -26,7 +26,7 @@ class _GamesPageState extends State<GamesPage> {
     // Provider를 통해 경기 기록 데이터를 가져옵니다.
     Future.microtask(() async {
       // 현재 사용자 ID 가져오기
-      final tokenData = await validateToken();
+      final tokenData = await TokenService().validateToken();
       if (tokenData['isValid'] && tokenData['user_id'] != null) {
         setState(() {
           currentUserId = tokenData['user_id'];
@@ -48,20 +48,19 @@ class _GamesPageState extends State<GamesPage> {
       List<dynamic> games, String filter, List<dynamic> starUsers) {
     if (filter == '전체') {
       return games;
-    } else if (filter == '내 경기' && currentUserId != null) {
+    } else if (filter == '내 경기') {
+      // 현재 사용자가 참여한 경기만 필터링
       return games.where((game) {
-        final winnerId = game['winner_id']?.toString() ?? '';
-        final loserId = game['loser_id']?.toString() ?? '';
-        return winnerId == currentUserId.toString() ||
-            loserId == currentUserId.toString();
+        final winnerId = game['winner_id'];
+        final loserId = game['loser_id'];
+        return winnerId == currentUserId || loserId == currentUserId;
       }).toList();
-    } else if (filter == '즐겨찾기' && starUsers.isNotEmpty) {
-      final starUserIds =
-          starUsers.map((user) => user['user_id'].toString()).toSet();
+    } else if (filter == '즐겨찾기') {
+      // 즐겨찾기한 사용자가 참여한 경기만 필터링
       return games.where((game) {
-        final winnerId = game['winner_id']?.toString() ?? '';
-        final loserId = game['loser_id']?.toString() ?? '';
-        return starUserIds.contains(winnerId) || starUserIds.contains(loserId);
+        final winnerId = game['winner_id'];
+        final loserId = game['loser_id'];
+        return starUsers.contains(winnerId) || starUsers.contains(loserId);
       }).toList();
     }
     return games;
@@ -102,7 +101,7 @@ class _GamesPageState extends State<GamesPage> {
             final filteredGames =
                 filterGames(allGames, selectedFilter, starUsers);
 
-            return Center(
+            return SingleChildScrollView(
               child: Container(
                 // 원하는 폭을 지정 (예: 393)
                 width: 393,
@@ -127,7 +126,8 @@ class _GamesPageState extends State<GamesPage> {
                       child: _buildGameInfoHeader(),
                     ),
                     // 경기 기록 리스트
-                    Expanded(
+                    SizedBox(
+                      height: 400, // 고정 높이 설정
                       child: filteredGames.isEmpty
                           ? const Center(
                               child: Text(
@@ -294,7 +294,7 @@ class _GamesPageState extends State<GamesPage> {
       ),
       onDismissed: (direction) {
         Provider.of<GamesInfoProvider>(context, listen: false)
-            .removeGameRecord(id);
+            .removeGameRecord(int.parse(id));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$id 경기 기록이 삭제되었습니다.')),
         );

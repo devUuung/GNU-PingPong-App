@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_app/service/token_valid.dart';
+import 'package:flutter_app/services/token_service.dart';
 import 'package:flutter_app/api_config.dart';
 import 'package:flutter_app/dialog.dart';
 
@@ -86,7 +86,7 @@ class _RecruitPostPageState extends State<RecruitPostPage> {
 
     try {
       // 토큰 검증을 통해 사용자 ID 가져오기
-      final tokenResult = await validateToken();
+      final tokenResult = await TokenService().validateToken();
 
       if (!tokenResult['isValid']) {
         showErrorDialog(context, '로그인이 필요합니다.');
@@ -117,29 +117,37 @@ class _RecruitPostPageState extends State<RecruitPostPage> {
 
       // API 요청 보내기
       final token = await _secureStorage.read(key: 'access_token');
-      final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/recruit/post'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(requestData),
-      );
+      final client = http.Client();
+      try {
+        final response = await client
+            .post(
+              Uri.parse(ApiConfig.recruitPost),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode(requestData),
+            )
+            .timeout(const Duration(seconds: 15));
 
-      // 응답 처리
-      final responseData = jsonDecode(response.body);
+        // 응답 처리
+        final responseData = jsonDecode(response.body);
 
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        // 성공 시 처리
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('모집공고가 등록되었습니다.')),
-          );
-          Navigator.pop(context); // 이전 화면으로 돌아가기
+        if (response.statusCode == 200 && responseData['success'] == true) {
+          // 성공 시 처리
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('모집공고가 등록되었습니다.')),
+            );
+            Navigator.pop(context); // 이전 화면으로 돌아가기
+          }
+        } else {
+          // 실패 시 처리
+          showErrorDialog(
+              context, responseData['message'] ?? '모집공고 등록에 실패했습니다.');
         }
-      } else {
-        // 실패 시 처리
-        showErrorDialog(context, responseData['message'] ?? '모집공고 등록에 실패했습니다.');
+      } finally {
+        client.close();
       }
     } catch (e) {
       // 예외 처리
@@ -193,6 +201,7 @@ class _RecruitPostPageState extends State<RecruitPostPage> {
     return Scaffold(
       appBar: const CommonAppBar(
         currentPage: "recruitPost",
+        showNotificationIcon: false,
       ),
       backgroundColor: const Color(0xFFFEF7FF),
       body: Stack(
@@ -322,6 +331,8 @@ class _RecruitPostPageState extends State<RecruitPostPage> {
             ),
         ],
       ),
+      bottomNavigationBar:
+          const CommonBottomNavigationBar(currentPage: "recruitPost"),
     );
   }
 }

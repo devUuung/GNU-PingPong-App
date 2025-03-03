@@ -186,22 +186,25 @@ def create_post(
             title=title,
         )
 
-        # 먼저 post를 저장하여 post_id를 생성합니다
+        # 게시물 저장하고 ID 생성
         session.add(post)
         session.commit()
         session.refresh(post)
 
-        # post_id가 생성된 후에 post_participant를 생성합니다
-        post_participant = PostParticipant(
-            post_id=post.post_id,
-            user_id=writer_id,
-        )
+        # post 객체의 복사본을 생성하여 세션과의 관계를 끊음
+        post_data = {
+            "post_id": post.post_id,
+            "writer_id": post.writer_id,
+            "game_at": post.game_at,
+            "game_place": post.game_place,
+            "max_user": post.max_user,
+            "content": post.content,
+            "title": post.title,
+            "created_at": post.created_at,
+        }
 
-        session.add(post_participant)
-        session.commit()
-        session.refresh(post_participant)
-
-        return post
+        # 딕셔너리로 변환된 post 데이터 반환
+        return Post(**post_data)
 
 
 # Game CRUD 함수들

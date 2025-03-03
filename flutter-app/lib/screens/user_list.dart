@@ -237,8 +237,48 @@ class _UserListPageState extends State<UserListPage> {
             if (usersProvider.isLoading) {
               return const Center(child: CircularProgressIndicator());
             }
+
+            // 오류 메시지가 있는 경우 표시
+            if (usersProvider.error != null) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.red,
+                        size: 60,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        usersProvider.error!,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: Colors.red,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
             // Provider에서 불러온 유저 목록 (캐시 혹은 API에서 불러온 데이터)
-            final users = usersProvider.users ?? [];
+            var users = usersProvider.users ?? [];
+
+            // 현재 로그인한 사용자가 있고, 목록에 없는 경우 추가
+            if (usersProvider.currentUser != null) {
+              bool containsCurrentUser = users.any(
+                  (user) => user.userId == usersProvider.currentUser!.userId);
+
+              if (!containsCurrentUser) {
+                users = [...users, usersProvider.currentUser!];
+              }
+            }
+
             return SingleChildScrollView(
               child: Center(
                 child: Container(
@@ -258,14 +298,26 @@ class _UserListPageState extends State<UserListPage> {
                       _buildFilterRow(),
                       // 실제 사용자 명단 리스트
                       Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.only(top: 8),
-                          itemCount: users.length,
-                          itemBuilder: (context, index) {
-                            final user = users[index];
-                            return _buildUserItem(user);
-                          },
-                        ),
+                        child: users.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  '사용자 목록이 비어 있습니다.',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: Color(0xFF49454F),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.only(top: 8),
+                                itemCount: users.length,
+                                itemBuilder: (context, index) {
+                                  final user = users[index];
+                                  return _buildUserItem(user.toJson());
+                                },
+                              ),
                       ),
                     ],
                   ),

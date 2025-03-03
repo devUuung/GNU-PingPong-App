@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:flutter/services.dart';
-import '../api_config.dart'; // api_config.dart를 import 합니다.
-import '../dialog.dart'; // 다이얼로그 사용을 위한 import
+import '../services/user_service.dart';
+import '../utils/dialog_utils.dart';
+import '../widgets/common/loading_indicator.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({Key? key}) : super(key: key);
@@ -13,108 +11,60 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
+  final _formKey = GlobalKey<FormState>();
   final _studentIdController = TextEditingController();
-  final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _statusMessageController = TextEditingController(text: '안녕하세요!');
-
-  // 기본 프로필 이미지 URL - 수정된 경로
-  final String _defaultProfileImageUrl =
-      'http://0.0.0.0:8000/static/default_profile.png';
-
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final UserService _userService = UserService();
   bool _isLoading = false;
 
   @override
   void dispose() {
     _studentIdController.dispose();
-    _nameController.dispose();
-    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _statusMessageController.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
   Future<void> _signUp() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
-    final studentId = _studentIdController.text.trim();
-    final name = _nameController.text.trim();
-    final phone = _phoneController.text.trim();
-    final password = _passwordController.text.trim();
-    final confirmPassword = _confirmPasswordController.text.trim();
-    final statusMessage = _statusMessageController.text.trim();
-
-    if (studentId.isEmpty ||
-        name.isEmpty ||
-        phone.isEmpty ||
-        password.isEmpty ||
-        confirmPassword.isEmpty) {
-      _showMessage('모든 필드를 입력해주세요.');
-      setState(() {
-        _isLoading = false;
-      });
-      return;
-    }
-
-    if (password != confirmPassword) {
-      _showMessage('비밀번호가 일치하지 않습니다.');
-      setState(() {
-        _isLoading = false;
-      });
-      return;
-    }
-
-    // api_config.dart에서 관리하는 엔드포인트 사용
-    final url = ApiConfig.signUp;
-
     try {
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'student_id': studentId,
-          'name': name,
-          'phone': phone,
-          'password': password,
-          'status_message': statusMessage,
-        }),
+      final response = await _userService.signup(
+        _nameController.text.trim(),
+        _phoneController.text.trim(),
+        _passwordController.text.trim(),
+        _studentIdController.text.trim(),
       );
 
-      print(response.body);
-
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-
-        if (responseData['success'] == true) {
-          _showMessage('회원가입이 완료되었습니다!');
-          Navigator.pop(context);
-        } else {
-          final errMsg = responseData['message'] ?? '알 수 없는 오류가 발생했습니다.';
-          _showMessage(errMsg);
-        }
+      if (response['success'] == true) {
+        showSuccessDialog(
+          context,
+          message: '회원가입이 완료되었습니다. 로그인 화면으로 이동합니다.',
+          onDismiss: () => Navigator.pop(context),
+        );
       } else {
-        _showMessage('서버 오류: ${response.statusCode}');
+        showErrorDialog(context, response['message'] ?? '회원가입에 실패했습니다.');
       }
     } catch (e) {
-      _showMessage('회원가입 중 오류가 발생했습니다: $e');
+      showErrorDialog(context, '회원가입 중 오류가 발생했습니다: $e');
     } finally {
       setState(() {
         _isLoading = false;
       });
     }
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
   }
 
   @override
@@ -123,90 +73,122 @@ class _SignUpPageState extends State<SignUpPage> {
       appBar: AppBar(
         title: const Text('회원가입'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // 학번
-              TextField(
-                controller: _studentIdController,
-                decoration: const InputDecoration(
-                  labelText: '학번',
+      body: _isLoading
+          ? const LoadingIndicator(message: '회원가입 처리 중...')
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 학번
+                    TextFormField(
+                      controller: _studentIdController,
+                      decoration: const InputDecoration(
+                        labelText: '학번',
+                        border: OutlineInputBorder(),
+                        hintText: '학번을 입력하세요',
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return '학번을 입력해주세요';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 비밀번호
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: const InputDecoration(
+                        labelText: '비밀번호',
+                        border: OutlineInputBorder(),
+                        hintText: '비밀번호를 입력하세요',
+                      ),
+                      obscureText: true,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return '비밀번호를 입력해주세요';
+                        }
+                        if (value.length < 6) {
+                          return '비밀번호는 6자 이상이어야 합니다';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 비밀번호 확인
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      decoration: const InputDecoration(
+                        labelText: '비밀번호 확인',
+                        border: OutlineInputBorder(),
+                        hintText: '비밀번호를 다시 입력하세요',
+                      ),
+                      obscureText: true,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return '비밀번호를 다시 입력해주세요';
+                        }
+                        if (value != _passwordController.text) {
+                          return '비밀번호가 일치하지 않습니다';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 이름
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(
+                        labelText: '이름',
+                        border: OutlineInputBorder(),
+                        hintText: '이름을 입력하세요',
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return '이름을 입력해주세요';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 전화번호
+                    TextFormField(
+                      controller: _phoneController,
+                      decoration: const InputDecoration(
+                        labelText: '전화번호',
+                        border: OutlineInputBorder(),
+                        hintText: '전화번호를 입력하세요 (예: 010-1234-5678)',
+                      ),
+                      keyboardType: TextInputType.phone,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return '전화번호를 입력해주세요';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 회원가입 버튼
+                    ElevatedButton(
+                      onPressed: _signUp,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('회원가입', style: TextStyle(fontSize: 16)),
+                    ),
+                  ],
                 ),
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               ),
-              // 이름
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: '이름',
-                ),
-              ),
-              // 전화번호
-              TextField(
-                controller: _phoneController,
-                decoration: const InputDecoration(
-                  labelText: '전화번호',
-                ),
-                keyboardType: TextInputType.phone,
-              ),
-              // 상태 메시지
-              TextField(
-                controller: _statusMessageController,
-                decoration: const InputDecoration(
-                  labelText: '상태 메시지',
-                  hintText: '한 줄 소개를 입력하세요',
-                ),
-              ),
-              // 비밀번호
-              TextField(
-                controller: _passwordController,
-                decoration: const InputDecoration(
-                  labelText: '비밀번호',
-                ),
-                obscureText: true,
-              ),
-              // 비밀번호 확인
-              TextField(
-                controller: _confirmPasswordController,
-                decoration: const InputDecoration(
-                  labelText: '비밀번호 확인',
-                ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 20),
-              // 회원가입 버튼
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _signUp,
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text('회원가입'),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // 로그인 화면으로 돌아가기
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text('이미 계정이 있으신가요? 로그인하기'),
-              ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 }

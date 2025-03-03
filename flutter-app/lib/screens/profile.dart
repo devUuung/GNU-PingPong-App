@@ -10,7 +10,7 @@ import 'package:flutter_app/dialog.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_app/providers/users_info_provider.dart';
-import 'package:flutter_app/service/token_valid.dart';
+import 'package:flutter_app/services/token_service.dart';
 import 'package:flutter_app/screens/login.dart';
 
 class MyInfoPage extends StatefulWidget {
@@ -80,7 +80,10 @@ class _MyInfoPageState extends State<MyInfoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CommonAppBar(currentPage: "settings"),
+      appBar: const CommonAppBar(
+        currentPage: "settings",
+        showNotificationIcon: false,
+      ),
       body: Consumer<UsersInfoProvider>(
         builder: (context, usersInfoProvider, child) {
           // 로딩 중일 때 로딩 인디케이터 표시
@@ -123,7 +126,7 @@ class _MyInfoPageState extends State<MyInfoPage> {
 
           // 프로필 이미지 URL 가져오기 (없으면 기본 이미지 사용)
           final String profileImageUrl =
-              userInfo['profile_image_url'] ?? _defaultProfileImageUrl;
+              userInfo.profileImageUrl ?? _defaultProfileImageUrl;
 
           return SingleChildScrollView(
             child: Container(
@@ -134,17 +137,17 @@ class _MyInfoPageState extends State<MyInfoPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ProfileHeader(
-                    userName: userInfo['username'] ?? 'None',
+                    userName: userInfo.username ?? 'None',
                     profileImageUrl: profileImageUrl,
-                    statusMessage: userInfo['status_message'] ?? 'None',
+                    statusMessage: userInfo.statusMessage ?? 'None',
                   ),
                   const SizedBox(height: 20),
                   // 사용자 기본 정보 (예시)
                   const InfoRow(label: '전공', value: 'None'),
-                  InfoRow(label: '학번', value: '${userInfo['student_id']}'),
+                  InfoRow(label: '학번', value: '${userInfo.studentId}'),
                   InfoRow(
                       label: '부수 / 승점',
-                      value: '${userInfo['point']}부 / ${userInfo['point']}'),
+                      value: '${userInfo.point}부 / ${userInfo.point}'),
                   // 메뉴 항목들
                   SettingsListItem(
                     title: '비밀번호 재설정',

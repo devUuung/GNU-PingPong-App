@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Header
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.exc import IntegrityError
 from models import (
@@ -31,31 +31,49 @@ from sqlmodel import Session, select
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
+from core.config import settings
+from routers import users, games, posts, admin
+
 # JWT 관련 상수 (실제 운영에서는 비밀키를 환경변수로 관리하세요)
 SECRET_KEY = "YOUR_SECRET_KEY"  # 반드시 안전하게 관리할 것
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 365
 
 # 업로드 디렉토리 설정
-UPLOAD_DIR = "static/uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
 # 기본 프로필 이미지 경로 설정
 DEFAULT_PROFILE_IMAGE = "static/default_profile.png"
 
-app = FastAPI()
+app = FastAPI(title=settings.PROJECT_NAME)
 
 # CORS 미들웨어 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 실제 운영 환경에서는 구체적인 도메인으로 제한하세요
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 정적 파일 제공 설정
+
+# 한글 인코딩을 위한 미들웨어 추가
+@app.middleware("http")
+async def add_charset_utf8_to_json_response(request, call_next):
+    response = await call_next(request)
+    if response.headers.get("content-type") == "application/json":
+        response.headers["content-type"] = "application/json; charset=utf-8"
+    return response
+
+
+# 정적 파일 마운트 설정 - fastapi-app 내부의 static 폴더 사용
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# 라우터 등록
+app.include_router(users.router)
+app.include_router(games.router)
+app.include_router(posts.router)
+app.include_router(admin.router, prefix=settings.API_V1_STR)
 
 
 # JWT 토큰 생성 함수
@@ -204,7 +222,7 @@ async def upload_profile_image(file: UploadFile = File(...)):
 
     # 고유한 파일명 생성
     unique_filename = f"{uuid.uuid4()}.{file_extension}"
-    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    file_path = os.path.join(settings.UPLOAD_DIR, unique_filename)
 
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
@@ -262,11 +280,12 @@ def get_users_info():
     )
 
 
-@app.patch("/api/userinfo/{user_id}")
+@app.put("/api/userinfo/{user_id}")
 async def update_user_info(
     user_id: str,
     username: Optional[str] = Form(None),
     status_message: Optional[str] = Form(None),
+    device_id: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
 ):
     try:
@@ -289,6 +308,8 @@ async def update_user_info(
         updated_fields["username"] = username
     if status_message is not None:
         updated_fields["status_message"] = status_message
+    if device_id is not None:
+        updated_fields["device_id"] = device_id
 
     if file is not None:
         # 파일 확장자 검증
@@ -301,7 +322,7 @@ async def update_user_info(
 
         # 고유 파일명 생성 후 저장
         unique_filename = f"{uuid.uuid4()}.{file_extension}"
-        file_path = os.path.join(UPLOAD_DIR, unique_filename)
+        file_path = os.path.join(settings.UPLOAD_DIR, unique_filename)
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
@@ -640,19 +661,15 @@ class RecruitPostData(BaseModel):
 @app.post("/api/recruit/post")
 def create_recruit_post(data: RecruitPostData):
     try:
-        # 작성자 확인
-        writer: Optional[User] = read_user_by_user_id(data.user_id)
-        if not writer:
+        # 포스트 작성자 확인
+        user = read_user_by_user_id(data.user_id)
+        if not user:
             return JSONResponse(
-                content={
-                    "success": False,
-                    "message": "작성자 정보를 찾을 수 없습니다.",
-                },
                 status_code=404,
-                media_type="application/json; charset=utf-8",
+                content={"success": False, "message": "사용자를 찾을 수 없습니다."},
             )
 
-        # 모집 공고 생성
+        # 게시물 생성 - 개별 파라미터로 전달
         post = create_post(
             writer_id=data.user_id,
             game_at=data.game_at,
@@ -662,25 +679,70 @@ def create_recruit_post(data: RecruitPostData):
             title=data.title,
         )
 
-        # 응답 데이터 생성
-        post_data = jsonable_encoder(post)
+        # post 객체에서 post_id 가져오기
+        post_id = post.post_id
+
+        # 작성자를 첫 번째 참가자로 자동 등록 - 객체 전달 대신 매개변수 전달
+        create_post_participant(post_id=post_id, user_id=data.user_id)
+
         return JSONResponse(
+            status_code=200,
             content={
                 "success": True,
-                "message": "모집 공고 생성 성공",
-                "post": post_data,
+                "message": "모집 공고가 성공적으로 등록되었습니다.",
+                "post_id": post_id,
             },
-            media_type="application/json; charset=utf-8",
+            media_type="application/json; charset=utf-8",  # 명시적 인코딩 지정
         )
     except Exception as e:
-        print(f"모집 공고 생성 중 오류 발생: {e}")
         return JSONResponse(
-            content={
-                "success": False,
-                "message": f"모집 공고 생성 중 오류가 발생했습니다: {str(e)}",
-            },
             status_code=500,
-            media_type="application/json; charset=utf-8",
+            content={"success": False, "message": f"서버 오류: {str(e)}"},
+            media_type="application/json; charset=utf-8",  # 명시적 인코딩 지정
+        )
+
+
+@app.post("/api/v1/recruit/post")
+def create_recruit_post_v1(data: RecruitPostData):
+    try:
+        # 포스트 작성자 확인
+        user = read_user_by_user_id(data.user_id)
+        if not user:
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "message": "사용자를 찾을 수 없습니다."},
+            )
+
+        # 게시물 생성 - 개별 파라미터로 전달
+        post = create_post(
+            writer_id=data.user_id,
+            game_at=data.game_at,
+            game_place=data.game_place,
+            max_user=data.max_user,
+            content=data.content,
+            title=data.title,
+        )
+
+        # post 객체에서 post_id 가져오기
+        post_id = post.post_id
+
+        # 작성자를 첫 번째 참가자로 자동 등록 - 객체 전달 대신 매개변수 전달
+        create_post_participant(post_id=post_id, user_id=data.user_id)
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": "모집 공고가 성공적으로 등록되었습니다.",
+                "post_id": post_id,
+            },
+            media_type="application/json; charset=utf-8",  # 명시적 인코딩 지정
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"서버 오류: {str(e)}"},
+            media_type="application/json; charset=utf-8",  # 명시적 인코딩 지정
         )
 
 
@@ -717,6 +779,13 @@ def get_recruit_posts():
             status_code=500,
             media_type="application/json; charset=utf-8",
         )
+
+
+# 게시물 목록 조회 API v1 경로 추가
+@app.get("/api/v1/recruit/posts")
+def get_recruit_posts_v1():
+    # 기존 함수 재사용
+    return get_recruit_posts()
 
 
 # 모집공고 수정 API
@@ -963,11 +1032,13 @@ def leave_recruit_post(post_id: int, user_id: int):
         # 참가자 삭제
         with Session(engine) as session:
             participant = session.exec(
-                select(PostParticipant).where(
+                select(PostParticipant)
+                .where(
                     (PostParticipant.post_id == post_id)
                     & (PostParticipant.user_id == user_id)
                 )
-            ).first()
+                .first()
+            )
 
             if participant:
                 session.delete(participant)
@@ -1080,3 +1151,85 @@ def change_password(
             status_code=500,
             media_type="application/json; charset=utf-8",
         )
+
+
+# 관리자 페이지 엔드포인트
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page():
+    try:
+        # fastapi-app 내부의 static 폴더 사용
+        with open("static/admin.html", "r", encoding="utf-8") as f:
+            content = f.read()
+        return HTMLResponse(content=content)
+    except FileNotFoundError:
+        return HTMLResponse(
+            content="<h1>관리자 페이지를 찾을 수 없습니다.</h1><p>파일 경로를 확인해주세요.</p>"
+        )
+
+
+# 루트 페이지 (관리자 페이지로 리디렉션)
+@app.get("/", response_class=RedirectResponse)
+async def root():
+    return RedirectResponse(url="/admin")
+
+
+# 게시물 수정 API v1 경로 추가
+@app.put("/api/v1/recruit/post/{post_id}")
+def update_recruit_post_v1(post_id: int, data: UpdatePostData):
+    # 기존 함수 재사용
+    return update_recruit_post(post_id, data)
+
+
+# 게시물 삭제 API v1 경로 추가
+@app.delete("/api/v1/recruit/post/{post_id}")
+def delete_recruit_post_v1(post_id: int, user_id: int):
+    # 기존 함수 재사용
+    return delete_recruit_post(post_id, user_id)
+
+
+# 게시물 조회 API v1 경로 추가
+@app.get("/api/v1/recruit/post/{post_id}")
+def get_recruit_post_v1(post_id: int):
+    try:
+        # 게시물 정보 조회
+        with Session(engine) as session:
+            post = session.get(Post, post_id)
+            if not post:
+                return JSONResponse(
+                    content={
+                        "success": False,
+                        "message": "게시물을 찾을 수 없습니다.",
+                    },
+                    status_code=404,
+                )
+
+            # 참가자 정보 조회
+            participants = session.exec(
+                select(PostParticipant).where(PostParticipant.post_id == post_id)
+            ).all()
+
+            # 게시물과 참가자 정보 응답
+            post_data = jsonable_encoder(post)
+            participants_data = jsonable_encoder(participants)
+
+            return JSONResponse(
+                content={
+                    "success": True,
+                    "post": post_data,
+                    "participants": participants_data,
+                },
+            )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "message": f"서버 오류: {str(e)}",
+            },
+        )
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)

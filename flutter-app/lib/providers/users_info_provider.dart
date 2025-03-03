@@ -1,113 +1,121 @@
 // lib/providers/users_info_provider.dart
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter_app/api_config.dart';
-import 'package:flutter_app/dialog.dart';
-import 'package:flutter_app/service/token_valid.dart'; // validateToken 함수 사용을 위해 import
+import '../models/index.dart';
+import '../services/index.dart';
 
 class UsersInfoProvider extends ChangeNotifier {
-  List<dynamic>? _users;
-  Map<String, dynamic>? _userInfo; // 단일 사용자 정보를 저장하는 변수
+  final UserService _userService = UserService();
+
+  User? _currentUser;
+  List<User>? _allUsers;
   bool _isLoading = false;
+  String? _error;
 
-  List<dynamic>? get users => _users;
-  Map<String, dynamic>? get userInfo => _userInfo;
+  User? get currentUser => _currentUser;
+  User? get userInfo => _currentUser;
+  List<User>? get allUsers => _allUsers;
+  List<User>? get users => _allUsers;
   bool get isLoading => _isLoading;
+  String? get error => _error;
 
-  Future<void> fetchUserInfo([BuildContext? context]) async {
-    // 로딩 상태 시작
+  /// 현재 사용자 정보를 가져오는 메서드
+  Future<User?> fetchCurrentUser() async {
     _isLoading = true;
-    // 빌드 중이 아닐 때만 notifyListeners 호출
-    if (context == null) {
-      notifyListeners();
-    }
+    _error = null;
 
     try {
-      final tokenData = await validateToken();
-      if (tokenData['user_id'] != null) {
-        final int myUserId = tokenData['user_id'];
-        final url = ApiConfig.userinfo + '/$myUserId';
-        final response = await http.get(
-          Uri.parse(url),
-          headers: {'Content-Type': 'application/json'},
-        );
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          if (data['success'] == true) {
-            _userInfo = data['user'];
-            print("사용자 정보 로드 완료: $_userInfo");
-          } else {
-            print('사용자 정보 가져오기 실패: ${data['message']}');
-          }
-        } else {
-          print('API 오류: ${response.statusCode}');
-        }
-      } else {
-        print('유효한 사용자 ID를 찾을 수 없음');
-      }
+      _currentUser = await _userService.getCurrentUser();
+      return _currentUser;
     } catch (e) {
-      print('사용자 정보를 가져오는 중 오류 발생: $e');
+      _error = '사용자 정보를 가져오는 중 오류가 발생했습니다: $e';
+      debugPrint(_error);
+      return null;
     } finally {
-      // 로딩 상태 종료
       _isLoading = false;
-      // 빌드 중이 아닐 때만 notifyListeners 호출
-      if (context == null) {
-        notifyListeners();
-      } else {
-        // 빌드 과정 중이라면 다음 프레임에서 알림
-        Future.microtask(() => notifyListeners());
-      }
+      notifyListeners();
     }
   }
 
-  Future<void> fetchUsersInfo(BuildContext context) async {
+  /// 모든 사용자 정보를 가져오는 메서드
+  Future<List<User>?> fetchAllUsers() async {
     _isLoading = true;
-    notifyListeners();
+    _error = null;
 
     try {
-      // API 호출하여 최신 데이터 가져오기
-      final url = ApiConfig.allUsersInfo; // 모든 유저 정보를 반환하는 API 엔드포인트
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          _users = data['users'];
-          print("API 호출 후 저장된 유저 정보: $_users");
-        } else {
-          print('유저 정보 가져오기 실패');
-        }
-      } else {
-        print('API 오류: ${response.statusCode}');
+      // 먼저 현재 사용자 정보를 확인
+      if (_currentUser == null) {
+        _currentUser = await _userService.getCurrentUser();
       }
 
-      // validateToken 함수를 호출하여 현재 사용자 user_id 가져오기
-      final tokenData = await validateToken();
-      if (tokenData['user_id'] != null) {
-        final int myUserId = tokenData['user_id'];
-        // _users를 List<Map<String, dynamic>>로 캐스팅 후, 현재 user_id와 일치하는 사용자 찾기
-        final List<Map<String, dynamic>> usersList =
-            _users?.cast<Map<String, dynamic>>() ?? [];
-
-        try {
-          _userInfo =
-              usersList.firstWhere((user) => user['user_id'] == myUserId);
-        } catch (e) {
-          // 일치하는 사용자가 없으면 _userInfo는 null로 남김
-          _userInfo = null;
-          print("현재 사용자를 찾지 못함: $e");
-        }
-      }
+      // 모든 사용자가 유저 목록을 볼 수 있도록 관리자 권한 체크 제거
+      _allUsers = await _userService.getAllUsers();
+      return _allUsers;
     } catch (e) {
-      print('유저 정보를 가져오는 중 오류 발생: $e');
+      _error = '사용자 정보를 가져오는 중 오류가 발생했습니다: $e';
+      debugPrint(_error);
+      return null;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// 사용자 정보를 업데이트하는 메서드
+  Future<User?> updateUser(
+      {String? username, String? phoneNumber, String? statusMessage}) async {
+    _isLoading = true;
+    _error = null;
+
+    try {
+      final updatedUser = await _userService.updateUser(
+        username: username,
+        phoneNumber: phoneNumber,
+        statusMessage: statusMessage,
+      );
+
+      if (updatedUser != null) {
+        _currentUser = updatedUser;
+      }
+      return _currentUser;
+    } catch (e) {
+      _error = '사용자 정보를 업데이트하는 중 오류가 발생했습니다: $e';
+      debugPrint(_error);
+      return null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// 로그아웃 메서드
+  Future<void> logout() async {
+    _isLoading = true;
+
+    try {
+      await _userService.logout();
+      _currentUser = null;
+      _allUsers = null;
+    } catch (e) {
+      _error = '로그아웃 중 오류가 발생했습니다: $e';
+      debugPrint(_error);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// 이전 버전과의 호환성을 위한 메서드 (fetchCurrentUser 호출)
+  Future<User?> fetchUserInfo([BuildContext? context]) async {
+    return await fetchCurrentUser();
+  }
+
+  /// 이전 버전과의 호환성을 위한 메서드 (fetchAllUsers 호출)
+  Future<List<User>?> fetchUsersInfo([BuildContext? context]) async {
+    return await fetchAllUsers();
+  }
+
+  Future<void> initializeData() async {
+    await fetchCurrentUser();
+    await fetchAllUsers();
   }
 }
