@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     # 서버 URL 설정
     SERVER_HOST: str = os.getenv("SERVER_HOST", "http://0.0.0.0:8000")
 
+    PORT: int = os.getenv("PORT", 8000)
+
     class Config:
         case_sensitive = True
         env_file = ".env"

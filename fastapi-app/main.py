@@ -101,7 +101,7 @@ def get_file_url(file_path: str) -> str:
         relative_path = f"static/{os.path.basename(file_path)}"
 
     # 서버 URL 기반으로 완전한 URL 생성
-    base_url = "http://0.0.0.0:8000"  # 실제 서버 URL로 변경해야 함
+    base_url = f"{settings.SERVER_HOST}:{settings.PORT}"  # 실제 서버 URL로 변경해야 함
     return f"{base_url}/{relative_path}"
 
 
@@ -1232,4 +1232,4 @@ def get_recruit_post_v1(post_id: int):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=settings.SERVER_HOST, port=settings.PORT)
