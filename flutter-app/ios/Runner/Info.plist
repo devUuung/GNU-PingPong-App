@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -24,6 +26,18 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>주변 사용자를 찾기 위해 블루투스 접근이 필요합니다.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>주변 사용자를 찾기 위해 블루투스 접근이 필요합니다.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>앱이 카메라로 프로필 이미지를 촬영하기 위해 사용합니다.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>블루투스 기기를 검색하기 위해 위치 정보가 필요합니다.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>앱이 사진 보관함에 접근하여 이미지를 선택하기 위해 사용합니다.</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -41,19 +55,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>앱이 사진 보관함에 접근하여 이미지를 선택하기 위해 사용합니다.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>앱이 카메라로 프로필 이미지를 촬영하기 위해 사용합니다.</string>
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>주변 사용자를 찾기 위해 블루투스 접근이 필요합니다.</string>
-	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>주변 사용자를 찾기 위해 블루투스 접근이 필요합니다.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>블루투스 기기를 검색하기 위해 위치 정보가 필요합니다.</string>
 </dict>
 </plist>

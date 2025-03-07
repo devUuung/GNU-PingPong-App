@@ -282,8 +282,8 @@ class _UserListPageState extends State<UserListPage> {
             return SingleChildScrollView(
               child: Center(
                 child: Container(
-                  width: 393,
-                  height: 852,
+                  width: MediaQuery.of(context).size.width,
+                  height: MediaQuery.of(context).size.height,
                   decoration: ShapeDecoration(
                     color: const Color(0xFFFEF7FF), // 연분홍 배경
                     shape: RoundedRectangleBorder(
