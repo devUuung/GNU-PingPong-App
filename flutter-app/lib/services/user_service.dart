@@ -38,8 +38,13 @@ class UserService {
   }
 
   /// 회원가입 요청을 처리하는 메서드
-  Future<Map<String, dynamic>> signup(String username, String phoneNumber,
-      String password, String studentId, String deviceId, String major) async {
+  Future<Map<String, dynamic>> signup(
+      String username,
+      String phoneNumber,
+      String password,
+      String studentId,
+      String deviceId,
+      String department) async {
     try {
       // 디버그 로그 추가
       debugPrint('회원가입 요청 데이터:');
@@ -47,7 +52,7 @@ class UserService {
       debugPrint('phone_number: $phoneNumber');
       debugPrint('password: $password');
       debugPrint('student_id: $studentId');
-      debugPrint('major: $major');
+      debugPrint('department: $department');
 
       final response = await _apiClient.post(
         ApiConfig.signUp,
@@ -57,7 +62,7 @@ class UserService {
           'password': password,
           'student_id': studentId,
           'device_id': deviceId,
-          'major': major,
+          'department': department,
         },
       );
 

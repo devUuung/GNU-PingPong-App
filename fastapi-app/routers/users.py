@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile,
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import timedelta
 from sqlmodel import Session
 import bcrypt
@@ -37,7 +37,7 @@ class UserCreate(BaseModel):
     password: str
     student_id: int
     device_id: str
-    department: str
+    department: str = Field(None, alias="major")
 
 
 # 사용자 업데이트 모델
@@ -130,7 +130,7 @@ async def signup(user_create: UserCreate):
             password=hashed_password,  # 해시화된 비밀번호 사용
             student_id=user_create.student_id,
             device_id=user_create.device_id,
-            department=user_create.department
+            department=user_create.department or "",
         )
 
         # JWT 토큰 생성
