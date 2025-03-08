@@ -1117,7 +1117,9 @@ def change_password(
             )
 
         # 현재 비밀번호 확인
-        if user.password != data.old_password:
+        if not bcrypt.checkpw(
+            data.old_password.encode("utf-8"), user.password.encode("utf-8")
+        ):
             return JSONResponse(
                 content={
                     "success": False,
