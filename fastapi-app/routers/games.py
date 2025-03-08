@@ -33,6 +33,30 @@ async def get_all_games(current_user: User = Depends(get_current_active_user)):
     return [game.dict() for game in games]
 
 
+def calculate_k_factor(rating: float, streak: int) -> float:
+    """
+    레이팅과 연승 기록에 따라 K-팩터를 동적으로 계산합니다.
+    - rating이 800 미만이면 40,
+    - 800 ~ 1800 구간에서는 40에서 선형적으로 16까지 감소,
+    - 1800 이상이면 16.
+    또한, 연승이 2연승 이상이면 K-팩터에 보정을 적용합니다.
+    """
+    if rating < 800:
+        base_k = 40
+    elif rating <= 1800:
+        base_k = 40 - (24 * (rating - 800) / 1000)
+    else:
+        base_k = 16
+
+    # 연승 보정: 2연승이면 +1, 3연승 이상이면 +3
+    if streak >= 2 and streak < 3:
+        base_k += 1
+    elif streak >= 3:
+        base_k += 3
+
+    return base_k
+
+
 # 게임 생성 API
 @router.post("/create", status_code=status.HTTP_201_CREATED)
 async def create_new_game(
@@ -49,26 +73,30 @@ async def create_new_game(
                 content={"success": False, "message": "사용자를 찾을 수 없습니다."},
             )
 
-        # 점수 계산 (예: ELO 레이팅 시스템)
-        K = 32  # K 팩터 (점수 변동 폭)
+        # winner의 K 팩터 계산
+        winner_k = calculate_k_factor(winner.score, winner.point)
+        loser_k = calculate_k_factor(loser.score, loser.point)
+
+        # 예상 승률 계산
         expected_winner = 1 / (1 + 10 ** ((loser.score - winner.score) / 400))
         expected_loser = 1 / (1 + 10 ** ((winner.score - loser.score) / 400))
 
-        plus_score = round(K * (1 - expected_winner))
-        minus_score = round(K * (0 - expected_loser))
+        # 점수 계산
+        plus_score = round(winner_k * (1 - expected_winner))
+        minus_score = round(loser_k * (0 - expected_loser))
 
         # 승자 정보 업데이트
         winner.score += plus_score
         winner.game_count += 1
         winner.win_count += 1
-        winner.point += 3  # 승리 시 3포인트 추가
+        winner.point += 1
         update_user(winner)
 
         # 패자 정보 업데이트
         loser.score += minus_score
         loser.game_count += 1
         loser.lose_count += 1
-        loser.point += 1  # 패배 시 1포인트 추가
+        loser.point = 0
         update_user(loser)
 
         # 게임 정보 저장
