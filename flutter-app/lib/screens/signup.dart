@@ -44,8 +44,13 @@ class _SignUpPageState extends State<SignUpPage> {
       _isLoading = true;
     });
     String deviceId = '';
+    print("aaa");
 
-    if (Platform.isAndroid) {
+    if (kIsWeb) {
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      WebBrowserInfo info = await deviceInfo.webBrowserInfo;
+      deviceId = info.userAgent ?? '';
+    } else if (Platform.isAndroid) {
       DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
       AndroidDeviceInfo info = await deviceInfo.androidInfo;
       deviceId = info.serialNumber;
@@ -53,13 +58,10 @@ class _SignUpPageState extends State<SignUpPage> {
       DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
       IosDeviceInfo info = await deviceInfo.iosInfo;
       deviceId = info.identifierForVendor ?? '';
-    } else if (kIsWeb) {
-      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-      WebBrowserInfo info = await deviceInfo.webBrowserInfo;
-      deviceId = info.userAgent ?? '';
     } else {
       deviceId = '';
     }
+    print("bbb");
 
     try {
       final response = await _userService.signup(

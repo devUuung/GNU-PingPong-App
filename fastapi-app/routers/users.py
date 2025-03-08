@@ -5,6 +5,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import timedelta
 from sqlmodel import Session
+import bcrypt
 
 from core.config import settings
 from core.auth import create_access_token, get_current_active_user, get_admin_user
@@ -56,7 +57,32 @@ class PasswordChange(BaseModel):
 @router.post("/login")
 async def login(user_auth: UserAuth):
     user = read_user_by_student_id(user_auth.student_id)
-    if not user or user.password != user_auth.password:
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect student ID or password",
+        )
+
+    # 비밀번호 검증
+    stored_password = user.password
+    # 비밀번호가 해시화되었는지 확인 (bcrypt 해시는 $2b$로 시작)
+    is_password_hashed = stored_password.startswith("$2b$")
+
+    # 저장된 비밀번호가 해시화되어 있다면 bcrypt.checkpw 사용
+    password_match = False
+    if is_password_hashed:
+        try:
+            password_match = bcrypt.checkpw(
+                str(user_auth.password).encode("utf-8"), stored_password.encode("utf-8")
+            )
+        except Exception as e:
+            # 해시 형식이 잘못되었거나 다른 오류가 발생한 경우
+            password_match = False
+    else:
+        # 저장된 비밀번호가 해시화되어 있지 않다면 원문 비교
+        password_match = str(user_auth.password) == stored_password
+
+    if not password_match:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect student ID or password",
@@ -92,10 +118,15 @@ async def signup(user_create: UserCreate):
             )
 
         # 사용자 생성
+        # 비밀번호 해시화
+        hashed_password = bcrypt.hashpw(
+            str(user_create.password).encode("utf-8"), bcrypt.gensalt()
+        ).decode("utf-8")
+
         user = create_user(
             username=user_create.username,
             phone_number=user_create.phone_number,
-            password=user_create.password,
+            password=hashed_password,  # 해시화된 비밀번호 사용
             student_id=user_create.student_id,
             device_id=user_create.device_id,
         )
