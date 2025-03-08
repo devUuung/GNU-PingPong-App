@@ -24,8 +24,6 @@ dependencies:
 
   image_picker: ^0.8.7
 
-  jwt_decoder: ^2.0.1
-
   provider: ^6.1.1
 
   # 블루투스 기능을 위한 패키지
