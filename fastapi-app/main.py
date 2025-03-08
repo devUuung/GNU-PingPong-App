@@ -1130,7 +1130,11 @@ def change_password(
             )
 
         # 비밀번호 업데이트
-        updated_user = update_user(user_id_int, {"password": data.new_password})
+        hashed_new_password = bcrypt.hashpw(
+            data.new_password.encode("utf-8"), bcrypt.gensalt()
+        ).decode("utf-8")
+
+        updated_user = update_user(user_id_int, {"password": hashed_new_password})
 
         return JSONResponse(
             content={

@@ -148,13 +148,17 @@ def read_user_by_student_id(student_id: int):
 
 def update_user(user, updated_fields: dict):
     with Session(engine) as session:
-        # user 전체 대신 user.user_id를 식별자로 사용합니다.
-        user = session.get(User, user.user_id)
+        # user가 int인 경우(user_id)와 User 객체인 경우를 모두 처리
+        if isinstance(user, int):
+            user_obj = session.get(User, user)
+        else:
+            user_obj = session.get(User, user.user_id)
+
         for field, value in updated_fields.items():
-            setattr(user, field, value)
+            setattr(user_obj, field, value)
         session.commit()
-        session.refresh(user)
-        return user
+        session.refresh(user_obj)
+        return user_obj
 
 
 def delete_user(user_id: int):
