@@ -183,25 +183,57 @@ def signup(data: SignupData):
             media_type="application/json; charset=utf-8",
         )
 
+    # 비밀번호 해시화
+    password_before_hash = data.password  # 원본 비밀번호 저장 (일부만 표시용)
+
     hashed_password = bcrypt.hashpw(
         data.password.encode("utf-8"), bcrypt.gensalt()
     ).decode("utf-8")
+
+    is_hashed = password_before_hash != hashed_password  # 해시화 되었는지 확인
+
+    # 해시화에 실패한 경우 에러 반환
+    if not is_hashed or not hashed_password.startswith("$2b$"):
+        return JSONResponse(
+            content={
+                "success": False,
+                "message": "비밀번호 해시화에 실패했습니다.",
+                "debug_info": {
+                    "is_hashed": is_hashed,
+                    "hash_starts_with": hashed_password[:10] + "...",
+                },
+            },
+            status_code=500,
+            media_type="application/json; charset=utf-8",
+        )
 
     try:
         new_user = create_user(
             username=data.name,
             phone_number=data.phone,
-            password=hashed_password,
+            password=hashed_password,  # 해시화된 비밀번호 사용
             student_id=int(data.student_id),
             device_id=data.device_id,
             profile_image=DEFAULT_PROFILE_IMAGE,  # 기본 프로필 이미지 설정
         )
         new_user_data = prepare_user_response(new_user)
+
+        # 디버깅 정보 추가
+        debug_info = {
+            "password_was_hashed": is_hashed,
+            "password_starts_with": hashed_password[:10] + "...",
+            "password_length": len(hashed_password),
+            "is_stored_password_hashed": new_user.password != password_before_hash,
+            "stored_password_starts_with": new_user.password[:10] + "...",
+            "stored_password_length": len(new_user.password),
+        }
+
         return JSONResponse(
             content={
                 "success": True,
                 "message": "회원가입 성공",
                 "user": new_user_data,
+                "debug_info": debug_info,  # 디버깅 정보 추가
             },
             media_type="application/json; charset=utf-8",
         )
@@ -1107,6 +1139,10 @@ def change_password(
         user: Optional[User] = read_user_by_user_id(user_id_int)
 
         if not user:
+            # 디버깅 정보 추가
+            print(
+                f"사용자를 찾을 수 없음: user_id={user_id}, user_id_int={user_id_int}"
+            )
             return JSONResponse(
                 content={
                     "success": False,
@@ -1117,29 +1153,108 @@ def change_password(
             )
 
         # 현재 비밀번호 확인
-        if not bcrypt.checkpw(
-            data.old_password.encode("utf-8"), user.password.encode("utf-8")
-        ):
+        stored_password = user.password
+
+        # 비밀번호가 해시화되었는지 확인 (bcrypt 해시는 $2b$로 시작)
+        is_password_hashed = stored_password.startswith("$2b$")
+
+        # 저장된 비밀번호가 해시화되어 있다면 bcrypt.checkpw 사용
+        password_match = False
+        if is_password_hashed:
+            try:
+                password_match = bcrypt.checkpw(
+                    data.old_password.encode("utf-8"), stored_password.encode("utf-8")
+                )
+            except Exception as e:
+                # 해시 형식이 잘못되었거나 다른 오류가 발생한 경우
+                password_match = False
+        else:
+            # 저장된 비밀번호가 해시화되어 있지 않다면 원문 비교
+            password_match = data.old_password == stored_password
+
+        if not password_match:
             return JSONResponse(
                 content={
                     "success": False,
                     "message": "현재 비밀번호가 일치하지 않습니다.",
+                    "debug_info": {
+                        "is_password_hashed": is_password_hashed,
+                        "stored_password_starts_with": (
+                            stored_password[:10] + "..." if stored_password else "None"
+                        ),
+                    },
                 },
                 status_code=401,
                 media_type="application/json; charset=utf-8",
             )
 
         # 비밀번호 업데이트
+        password_before_hash = data.new_password  # 원본 비밀번호 저장
+
         hashed_new_password = bcrypt.hashpw(
             data.new_password.encode("utf-8"), bcrypt.gensalt()
         ).decode("utf-8")
 
-        updated_user = update_user(user_id_int, {"password": hashed_new_password})
+        is_hashed = password_before_hash != hashed_new_password  # 해시화 되었는지 확인
+
+        # user 객체가 있는지 확인
+        if user is None:
+            return JSONResponse(
+                content={
+                    "success": False,
+                    "message": "사용자 정보를 찾을 수 없습니다.",
+                },
+                status_code=404,
+                media_type="application/json; charset=utf-8",
+            )
+
+        try:
+            # 이전 비밀번호 값 저장 (비교용)
+            old_password_value = user.password
+
+            # 비밀번호 업데이트
+            updated_user = update_user(user_id_int, {"password": hashed_new_password})
+
+            if updated_user is None:
+                return JSONResponse(
+                    content={
+                        "success": False,
+                        "message": "사용자 정보 업데이트에 실패했습니다.",
+                    },
+                    status_code=500,
+                    media_type="application/json; charset=utf-8",
+                )
+
+            # 디버깅 정보 생성
+            debug_info = {
+                "user_id": user_id,
+                "user_id_int": user_id_int,
+                "password_was_hashed": is_hashed,
+                "new_password_starts_with": hashed_new_password[:10] + "...",
+                "new_password_length": len(hashed_new_password),
+                "old_stored_password_starts_with": (
+                    old_password_value[:10] + "..." if old_password_value else "None"
+                ),
+                "new_stored_password_starts_with": updated_user.password[:10] + "...",
+                "password_actually_updated": old_password_value
+                != updated_user.password,
+            }
+
+        except Exception as e:
+            return JSONResponse(
+                content={
+                    "success": False,
+                    "message": f"사용자 정보 업데이트 중 오류: {str(e)}",
+                },
+                status_code=500,
+                media_type="application/json; charset=utf-8",
+            )
 
         return JSONResponse(
             content={
                 "success": True,
                 "message": "비밀번호가 성공적으로 변경되었습니다.",
+                "debug_info": debug_info,  # 디버깅 정보 추가
             },
             media_type="application/json; charset=utf-8",
         )

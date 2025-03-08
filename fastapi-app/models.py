@@ -15,7 +15,7 @@ class User(SQLModel, table=True, tablename="user"):
     user_id: Optional[int] = Field(default=None, primary_key=True)
     username: str
     phone_number: str = Field(unique=True)
-    password: str
+    password: str = Field(max_length=200)
     created_at: datetime = Field(default=datetime.now())
     student_id: int = Field(unique=True)
 
