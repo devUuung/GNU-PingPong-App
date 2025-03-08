@@ -205,6 +205,206 @@ class PostInfo(BaseModel):
 # posts.router를 참조하세요.
 
 
+# 모집공고 생성 API - v1 버전
+class RecruitPostData(BaseModel):
+    title: str
+    game_at: datetime
+    game_place: str
+    max_user: int
+    content: str
+    user_id: int  # 작성자 ID
+
+
+@app.post("/api/v1/recruit/post")
+def create_recruit_post_v1(data: RecruitPostData):
+    """모집공고 생성 API - v1 버전"""
+    try:
+        # 포스트 작성자 확인
+        user = read_user_by_user_id(data.user_id)
+        if not user:
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "message": "사용자를 찾을 수 없습니다."},
+            )
+
+        # 게시물 생성 - 개별 파라미터로 전달
+        post = create_post(
+            writer_id=data.user_id,
+            game_at=data.game_at,
+            game_place=data.game_place,
+            max_user=data.max_user,
+            content=data.content,
+            title=data.title,
+        )
+
+        # post 객체에서 post_id 가져오기
+        post_id = post.post_id
+
+        # 작성자를 첫 번째 참가자로 자동 등록 - 객체 전달 대신 매개변수 전달
+        create_post_participant(post_id=post_id, user_id=data.user_id)
+
+        return JSONResponse(
+            status_code=201,
+            content={
+                "success": True,
+                "message": "모집 공고가 성공적으로 등록되었습니다.",
+                "post_id": post_id,
+            },
+            media_type="application/json; charset=utf-8",
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"서버 오류: {str(e)}"},
+            media_type="application/json; charset=utf-8",
+        )
+
+
+# 모집공고 참가 API - v1 버전
+@app.post("/api/v1/recruit/post/{post_id}/join")
+def join_recruit_post_v1(post_id: int, user_id: int):
+    """모집공고 참가 API - v1 버전"""
+    try:
+        # 모집 공고 조회
+        post = read_post(post_id)
+
+        # 사용자 조회
+        user = read_user_by_user_id(user_id)
+        if not user:
+            return JSONResponse(
+                content={
+                    "success": False,
+                    "message": "사용자 정보를 찾을 수 없습니다.",
+                },
+                status_code=404,
+                media_type="application/json; charset=utf-8",
+            )
+
+        # 이미 참가 중인지 확인
+        existing_participant = read_post_participant(post_id, user_id)
+        if existing_participant:
+            return JSONResponse(
+                content={
+                    "success": False,
+                    "message": "이미 참가 중인 모집 공고입니다.",
+                },
+                status_code=400,
+                media_type="application/json; charset=utf-8",
+            )
+
+        # 현재 참가자 수 확인
+        participants = read_post_participants_by_post_id(post_id)
+        if len(participants) >= post.max_user:
+            return JSONResponse(
+                content={"success": False, "message": "모집 인원이 가득 찼습니다."},
+                status_code=400,
+                media_type="application/json; charset=utf-8",
+            )
+
+        # 참가자 추가
+        participant = create_post_participant(post_id, user_id)
+
+        return JSONResponse(
+            content={"success": True, "message": "모집 공고 참가 성공"},
+            media_type="application/json; charset=utf-8",
+        )
+    except HTTPException as e:
+        return JSONResponse(
+            content={"success": False, "message": e.detail},
+            status_code=e.status_code,
+            media_type="application/json; charset=utf-8",
+        )
+    except Exception as e:
+        print(f"모집 공고 참가 중 오류 발생: {e}")
+        return JSONResponse(
+            content={
+                "success": False,
+                "message": f"모집 공고 참가 중 오류가 발생했습니다: {str(e)}",
+            },
+            status_code=500,
+            media_type="application/json; charset=utf-8",
+        )
+
+
+# 아래 API는 앱에서 특별히 사용하고 있는 경로이므로 다시 추가합니다
+@app.get("/api/v1/recruit/posts")
+def get_recruit_posts_v1():
+    """모든 모집공고 조회 API - v1 버전"""
+    try:
+        # 모든 모집 공고 조회
+        with Session(engine) as session:
+            posts = session.exec(select(Post)).all()
+
+        if not posts:
+            return JSONResponse(
+                content={
+                    "success": True,
+                    "message": "모집 공고가 없습니다.",
+                    "posts": [],
+                },
+                media_type="application/json; charset=utf-8",
+            )
+
+        posts_data = jsonable_encoder(posts)
+        return JSONResponse(
+            content={"success": True, "posts": posts_data},
+            media_type="application/json; charset=utf-8",
+        )
+    except Exception as e:
+        print(f"모집 공고 조회 중 오류 발생: {e}")
+        return JSONResponse(
+            content={
+                "success": False,
+                "message": f"모집 공고 조회 중 오류가 발생했습니다: {str(e)}",
+            },
+            status_code=500,
+            media_type="application/json; charset=utf-8",
+        )
+
+
+# 특정 모집공고 조회 API - v1 버전
+@app.get("/api/v1/recruit/post/{post_id}")
+def get_recruit_post_v1(post_id: int):
+    """특정 모집공고 조회 API - v1 버전"""
+    try:
+        # 게시물 정보 조회
+        with Session(engine) as session:
+            post = session.get(Post, post_id)
+            if not post:
+                return JSONResponse(
+                    content={
+                        "success": False,
+                        "message": "게시물을 찾을 수 없습니다.",
+                    },
+                    status_code=404,
+                )
+
+            # 참가자 정보 조회
+            participants = session.exec(
+                select(PostParticipant).where(PostParticipant.post_id == post_id)
+            ).all()
+
+            # 게시물과 참가자 정보 응답
+            post_data = jsonable_encoder(post)
+            participants_data = jsonable_encoder(participants)
+
+            return JSONResponse(
+                content={
+                    "success": True,
+                    "post": post_data,
+                    "participants": participants_data,
+                },
+            )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "message": f"서버 오류: {str(e)}",
+            },
+        )
+
+
 # 관리자 페이지 엔드포인트
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page():

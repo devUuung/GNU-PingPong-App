@@ -4,6 +4,8 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 from sqlmodel import Session
+from sqlalchemy import select
+from fastapi.encoders import jsonable_encoder
 
 from core.config import settings
 from core.auth import get_current_active_user
@@ -172,3 +174,57 @@ async def get_all_posts(current_user: User = Depends(get_current_active_user)):
             result.append(post_data)
 
         return result
+
+
+# 모집 공고 API 모델
+class RecruitPostData(BaseModel):
+    title: str
+    game_at: datetime
+    game_place: str
+    max_user: int
+    content: str
+    user_id: int  # 작성자 ID
+
+
+# 모집 공고 목록 조회 - v1 버전
+@router.get("/recruit/posts", tags=["recruit"])
+async def get_recruit_posts(current_user: User = Depends(get_current_active_user)):
+    try:
+        # 모든 모집 공고 조회
+        with Session(engine) as session:
+            posts = session.exec(select(Post)).all()
+
+        if not posts:
+            return JSONResponse(
+                content={
+                    "success": True,
+                    "message": "모집 공고가 없습니다.",
+                    "posts": [],
+                },
+                media_type="application/json; charset=utf-8",
+            )
+
+        posts_data = jsonable_encoder(posts)
+        return JSONResponse(
+            content={"success": True, "posts": posts_data},
+            media_type="application/json; charset=utf-8",
+        )
+    except Exception as e:
+        print(f"모집 공고 조회 중 오류 발생: {e}")
+        return JSONResponse(
+            content={
+                "success": False,
+                "message": f"모집 공고 조회 중 오류가 발생했습니다: {str(e)}",
+            },
+            status_code=500,
+            media_type="application/json; charset=utf-8",
+        )
+
+
+# API v1 경로 - 원래 main.py에 있던 것과 동일한 엔드포인트
+@router.get("/v1/recruit/posts", tags=["recruit"])
+async def get_recruit_posts_v1():
+    # 기존 함수 재사용
+    return await get_recruit_posts(
+        None
+    )  # current_user는 None으로 처리 (권한 체크 무시)
