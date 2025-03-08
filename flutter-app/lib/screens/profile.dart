@@ -143,7 +143,7 @@ class _MyInfoPageState extends State<MyInfoPage> {
                   ),
                   const SizedBox(height: 20),
                   // 사용자 기본 정보 (예시)
-                  const InfoRow(label: '전공', value: 'None'),
+                  InfoRow(label: '전공', value: userInfo.department),
                   InfoRow(label: '학번', value: '${userInfo.studentId}'),
                   InfoRow(
                       label: '부수 / 승점',
