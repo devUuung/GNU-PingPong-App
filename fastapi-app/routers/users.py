@@ -35,7 +35,7 @@ class UserCreate(BaseModel):
     phone_number: str
     password: str
     student_id: int
-    device_id: Optional[str] = None
+    device_id: str
 
 
 # 사용자 업데이트 모델

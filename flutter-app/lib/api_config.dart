@@ -3,13 +3,13 @@
 class ApiConfig {
   /// 기본 API URL
   // 로컬 테스트용 URL
-  static const String baseUrl = 'http://127.0.0.1:8000/api/v1';
+  // static const String baseUrl = 'http://127.0.0.1:8000/api/v1';
 
   // 에뮬레이터에서 테스트할 때 사용하는 URL
   // static const String baseUrl = 'http://10.0.2.2:8000/api/v1';
 
   // 실제 서버 URL (배포 시 사용)
-  // static const String baseUrl = 'https://your-server-domain.com/api/v1';
+  static const String baseUrl = 'http://117.16.153.235:8000/api/v1';
 
   /// 회원가입 API URL
   static const String signUp = '$baseUrl/users/signup';

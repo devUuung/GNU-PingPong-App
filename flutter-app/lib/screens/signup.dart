@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../services/user_service.dart';
 import '../utils/dialog_utils.dart';
 import '../widgets/common/loading_indicator.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:io';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({Key? key}) : super(key: key);
@@ -40,6 +43,23 @@ class _SignUpPageState extends State<SignUpPage> {
     setState(() {
       _isLoading = true;
     });
+    String deviceId = '';
+
+    if (Platform.isAndroid) {
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      AndroidDeviceInfo info = await deviceInfo.androidInfo;
+      deviceId = info.serialNumber;
+    } else if (Platform.isIOS) {
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      IosDeviceInfo info = await deviceInfo.iosInfo;
+      deviceId = info.identifierForVendor ?? '';
+    } else if (kIsWeb) {
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      WebBrowserInfo info = await deviceInfo.webBrowserInfo;
+      deviceId = info.userAgent ?? '';
+    } else {
+      deviceId = '';
+    }
 
     try {
       final response = await _userService.signup(
@@ -47,6 +67,7 @@ class _SignUpPageState extends State<SignUpPage> {
         _phoneController.text.trim(),
         _passwordController.text.trim(),
         _studentIdController.text.trim(),
+        deviceId,
       );
 
       if (response['success'] == true) {

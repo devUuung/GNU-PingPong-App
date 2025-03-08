@@ -38,9 +38,8 @@ class UserService {
   }
 
   /// 회원가입 요청을 처리하는 메서드
-  Future<Map<String, dynamic>> signup(
-      String username, String phoneNumber, String password, String studentId,
-      {String? deviceId}) async {
+  Future<Map<String, dynamic>> signup(String username, String phoneNumber,
+      String password, String studentId, String deviceId) async {
     try {
       // 디버그 로그 추가
       debugPrint('회원가입 요청 데이터:');
@@ -56,7 +55,7 @@ class UserService {
           'phone_number': phoneNumber,
           'password': password,
           'student_id': studentId,
-          if (deviceId != null) 'device_id': deviceId,
+          'device_id': deviceId,
         },
       );
 

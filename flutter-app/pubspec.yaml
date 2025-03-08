@@ -29,6 +29,8 @@ dependencies:
   # 블루투스 기능을 위한 패키지
   flutter_bluetooth_serial: ^0.4.0
 
+  device_info_plus: ^10.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
