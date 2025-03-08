@@ -128,8 +128,66 @@ class LoginData(BaseModel):
 
 @app.post("/api/login")
 def login(data: LoginData):
-    # 삭제: 라우터에 동일 기능이 있음
-    pass
+    """로그인 API - 기존 버전"""
+    # v1 버전 로그인 API 재사용
+    return login_v1(data)
+
+
+@app.post("/api/v1/login")
+def login_v1(data: LoginData):
+    """로그인 API - v1 버전"""
+    student_id = data.student_id
+    password = data.password
+
+    user: Optional[User] = read_user_by_student_id(student_id)
+    if not user:
+        return JSONResponse(
+            content={
+                "success": False,
+                "message": "해당 학번의 사용자를 찾을 수 없습니다.",
+            },
+            media_type="application/json; charset=utf-8",
+        )
+
+    stored_password = user.password
+    # 비밀번호가 해시화되었는지 확인 (bcrypt 해시는 $2b$로 시작)
+    is_password_hashed = stored_password.startswith("$2b$")
+
+    # 저장된 비밀번호가 해시화되어 있다면 bcrypt.checkpw 사용
+    password_match = False
+    if is_password_hashed:
+        try:
+            password_match = bcrypt.checkpw(
+                password.encode("utf-8"), stored_password.encode("utf-8")
+            )
+        except Exception as e:
+            # 해시 형식이 잘못되었거나 다른 오류가 발생한 경우
+            password_match = False
+    else:
+        # 저장된 비밀번호가 해시화되어 있지 않다면 원문 비교
+        password_match = password == stored_password
+
+    if not password_match:
+        return JSONResponse(
+            content={"success": False, "message": "비밀번호가 틀렸습니다."},
+            media_type="application/json; charset=utf-8",
+        )
+
+    # JWT 토큰 생성 (예: student_id를 sub에 담음)
+    access_token = create_access_token(data={"sub": str(user.user_id)})
+
+    # 사용자 정보 가공
+    user_data = prepare_user_response(user)
+
+    return JSONResponse(
+        content={
+            "success": True,
+            "message": "로그인 성공",
+            "access_token": access_token,
+            "user": user_data,
+        },
+        media_type="application/json; charset=utf-8",
+    )
 
 
 # 회원가입 및 기타 엔드포인트는 그대로 유지
@@ -203,6 +261,113 @@ class PostInfo(BaseModel):
 
 # 게시물 관련 API는 라우터로 이관되었습니다.
 # posts.router를 참조하세요.
+
+
+# 사용자 API용 추가 모델
+class ChangePasswordData(BaseModel):
+    old_password: str
+    new_password: str
+
+
+# 비밀번호 변경 API - v1 버전
+@app.post("/api/v1/users/{user_id}/change-password")
+def change_password_v1(
+    user_id: int, data: ChangePasswordData, authorization: Optional[str] = Header(None)
+):
+    """사용자 비밀번호 변경 API - v1 버전"""
+    if not authorization or not authorization.startswith("Bearer "):
+        return JSONResponse(
+            content={"success": False, "message": "인증이 필요합니다."},
+            status_code=401,
+            media_type="application/json; charset=utf-8",
+        )
+
+    token = authorization.replace("Bearer ", "")
+
+    try:
+        # JWT 토큰 검증
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        token_user_id = payload.get("sub")
+
+        if str(token_user_id) != str(user_id):
+            return JSONResponse(
+                content={"success": False, "message": "권한이 없습니다."},
+                status_code=403,
+                media_type="application/json; charset=utf-8",
+            )
+
+        # 사용자 조회
+        user: Optional[User] = read_user_by_user_id(user_id)
+
+        if not user:
+            return JSONResponse(
+                content={
+                    "success": False,
+                    "message": "사용자 정보를 찾을 수 없습니다.",
+                },
+                status_code=404,
+                media_type="application/json; charset=utf-8",
+            )
+
+        # 현재 비밀번호 확인
+        stored_password = user.password
+
+        # 비밀번호가 해시화되었는지 확인 (bcrypt 해시는 $2b$로 시작)
+        is_password_hashed = stored_password.startswith("$2b$")
+
+        # 저장된 비밀번호가 해시화되어 있다면 bcrypt.checkpw 사용
+        password_match = False
+        if is_password_hashed:
+            try:
+                password_match = bcrypt.checkpw(
+                    data.old_password.encode("utf-8"), stored_password.encode("utf-8")
+                )
+            except Exception as e:
+                # 해시 형식이 잘못되었거나 다른 오류가 발생한 경우
+                password_match = False
+        else:
+            # 저장된 비밀번호가 해시화되어 있지 않다면 원문 비교
+            password_match = data.old_password == stored_password
+
+        if not password_match:
+            return JSONResponse(
+                content={
+                    "success": False,
+                    "message": "현재 비밀번호가 일치하지 않습니다.",
+                },
+                status_code=401,
+                media_type="application/json; charset=utf-8",
+            )
+
+        # 비밀번호 업데이트
+        # 비밀번호 해시화
+        hashed_new_password = bcrypt.hashpw(
+            data.new_password.encode("utf-8"), bcrypt.gensalt()
+        ).decode("utf-8")
+
+        # 비밀번호 업데이트
+        updated_user = update_user(user, {"password": hashed_new_password})
+
+        return JSONResponse(
+            content={
+                "success": True,
+                "message": "비밀번호가 성공적으로 변경되었습니다.",
+            },
+            media_type="application/json; charset=utf-8",
+        )
+
+    except jwt.JWTError:
+        return JSONResponse(
+            content={"success": False, "message": "유효하지 않은 토큰입니다."},
+            status_code=401,
+            media_type="application/json; charset=utf-8",
+        )
+    except Exception as e:
+        return JSONResponse(
+            content={"success": False, "message": f"오류가 발생했습니다: {str(e)}"},
+            status_code=500,
+            media_type="application/json; charset=utf-8",
+        )
 
 
 # 모집공고 생성 API - v1 버전
