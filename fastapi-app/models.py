@@ -18,6 +18,7 @@ class User(SQLModel, table=True, tablename="user"):
     password: str = Field(max_length=200)
     created_at: datetime = Field(default=datetime.now())
     student_id: int = Field(unique=True)
+    department: str = Field(default="")
 
     score: float = Field(default=0)
     total_prize: int = Field(default=0)

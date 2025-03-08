@@ -21,6 +21,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _majorController = TextEditingController();
   final UserService _userService = UserService();
   bool _isLoading = false;
 
@@ -32,6 +33,7 @@ class _SignUpPageState extends State<SignUpPage> {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _majorController.dispose();
     super.dispose();
   }
 
@@ -44,7 +46,6 @@ class _SignUpPageState extends State<SignUpPage> {
       _isLoading = true;
     });
     String deviceId = '';
-    print("aaa");
 
     if (kIsWeb) {
       DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
@@ -61,7 +62,6 @@ class _SignUpPageState extends State<SignUpPage> {
     } else {
       deviceId = '';
     }
-    print("bbb");
 
     try {
       final response = await _userService.signup(
@@ -70,6 +70,7 @@ class _SignUpPageState extends State<SignUpPage> {
         _passwordController.text.trim(),
         _studentIdController.text.trim(),
         deviceId,
+        _majorController.text.trim(),
       );
 
       if (response['success'] == true) {
@@ -194,6 +195,23 @@ class _SignUpPageState extends State<SignUpPage> {
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return '전화번호를 입력해주세요';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 전공
+                    TextFormField(
+                      controller: _majorController,
+                      decoration: const InputDecoration(
+                        labelText: '전공',
+                        border: OutlineInputBorder(),
+                        hintText: '전공을 입력하세요',
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return '전공을 입력해주세요';
                         }
                         return null;
                       },

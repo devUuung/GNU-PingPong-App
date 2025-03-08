@@ -18,6 +18,7 @@ class User {
   final DateTime createdAt;
   final int customPoint;
   final int rank;
+  final String department;
   User({
     required this.userId,
     required this.username,
@@ -36,6 +37,7 @@ class User {
     this.deviceId,
     this.customPoint = 0,
     this.rank = 0,
+    this.department = "",
     required this.createdAt,
   });
 
@@ -62,6 +64,7 @@ class User {
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
       rank: json['rank'] ?? 0,
+      department: json['department'] ?? "",
     );
   }
 
@@ -86,6 +89,7 @@ class User {
       'created_at': createdAt.toIso8601String(),
       'custom_point': customPoint,
       'rank': rank,
+      'department': department,
     };
   }
 
@@ -104,6 +108,7 @@ class User {
     String? deviceId,
     int? customPoint,
     int? rank,
+    String? department,
   }) {
     return User(
       userId: this.userId,
@@ -124,6 +129,7 @@ class User {
       customPoint: customPoint ?? this.customPoint,
       createdAt: this.createdAt,
       rank: rank ?? this.rank,
+      department: department ?? this.department,
     );
   }
 }
