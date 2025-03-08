@@ -30,6 +30,7 @@ import shutil, uuid, os
 from sqlmodel import Session, select
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+import bcrypt
 
 from core.config import settings
 from routers import users, games, posts, admin
@@ -134,7 +135,7 @@ def login(data: LoginData):
     if not user:
         return {"success": False, "message": "해당 학번의 사용자를 찾을 수 없습니다."}
 
-    if user.password != password:
+    if not bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
         return {"success": False, "message": "비밀번호가 틀렸습니다."}
 
     # JWT 토큰 생성 (예: student_id를 sub에 담음)
@@ -182,11 +183,15 @@ def signup(data: SignupData):
             media_type="application/json; charset=utf-8",
         )
 
+    hashed_password = bcrypt.hashpw(
+        data.password.encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
+
     try:
         new_user = create_user(
             username=data.name,
             phone_number=data.phone,
-            password=data.password,
+            password=hashed_password,
             student_id=int(data.student_id),
             device_id=data.device_id,
             profile_image=DEFAULT_PROFILE_IMAGE,  # 기본 프로필 이미지 설정
