@@ -37,7 +37,7 @@ class UserCreate(BaseModel):
     password: str
     student_id: int
     device_id: str
-    department: str = Field(None, alias="major")
+    department: str
 
 
 # 사용자 업데이트 모델
@@ -116,6 +116,13 @@ async def signup(user_create: UserCreate):
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={"success": False, "message": "이미 등록된 전화번호입니다."},
+            )
+
+        # department 필드 검증
+        if user_create.department is None or user_create.department.strip() == "":
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"success": False, "message": "학과 정보는 필수입니다."},
             )
 
         # 사용자 생성

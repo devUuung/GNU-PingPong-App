@@ -21,7 +21,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _majorController = TextEditingController();
+  final _departmentController = TextEditingController();
   final UserService _userService = UserService();
   bool _isLoading = false;
 
@@ -33,7 +33,7 @@ class _SignUpPageState extends State<SignUpPage> {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _majorController.dispose();
+    _departmentController.dispose();
     super.dispose();
   }
 
@@ -70,7 +70,7 @@ class _SignUpPageState extends State<SignUpPage> {
         _passwordController.text.trim(),
         _studentIdController.text.trim(),
         deviceId,
-        _majorController.text.trim(),
+        _departmentController.text.trim(),
       );
 
       if (response['success'] == true) {
@@ -201,17 +201,17 @@ class _SignUpPageState extends State<SignUpPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 전공
+                    // 학과
                     TextFormField(
-                      controller: _majorController,
+                      controller: _departmentController,
                       decoration: const InputDecoration(
-                        labelText: '전공',
+                        labelText: '학과',
                         border: OutlineInputBorder(),
-                        hintText: '전공을 입력하세요',
+                        hintText: '학과를 입력하세요',
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return '전공을 입력해주세요';
+                          return '학과를 입력해주세요';
                         }
                         return null;
                       },
