@@ -26,15 +26,12 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 365  # 1년
 
-    # 데이터베이스 설정
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./pingpong.db")
-
     # 파일 업로드 설정
     UPLOAD_DIR: str = "static/uploads"
     DEFAULT_PROFILE_IMAGE: str = "static/default_profile.png"
 
     # 서버 URL 설정
-    SERVER_HOST: str = os.getenv("SERVER_HOST", "http://0.0.0.0:8000")
+    SERVER_HOST: str = os.getenv("SERVER_HOST", "0.0.0.0")
 
     PORT: int = os.getenv("PORT", 8000)
 
