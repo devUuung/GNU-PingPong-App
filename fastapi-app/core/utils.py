@@ -40,7 +40,7 @@ def get_file_url(file_path: str) -> str:
         relative_path = f"static/{os.path.basename(file_path)}"
 
     # 서버 URL 기반으로 완전한 URL 생성
-    return f"{settings.SERVER_HOST}/{relative_path}"
+    return f"{relative_path}"
 
 
 def prepare_user_response(user: User) -> dict:
