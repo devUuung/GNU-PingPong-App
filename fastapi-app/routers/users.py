@@ -37,6 +37,7 @@ class UserCreate(BaseModel):
     password: str
     student_id: int
     device_id: str
+    department: str
 
 
 # 사용자 업데이트 모델
@@ -129,6 +130,7 @@ async def signup(user_create: UserCreate):
             password=hashed_password,  # 해시화된 비밀번호 사용
             student_id=user_create.student_id,
             device_id=user_create.device_id,
+            department=user_create.department
         )
 
         # JWT 토큰 생성

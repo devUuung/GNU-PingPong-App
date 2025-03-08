@@ -103,6 +103,7 @@ def create_user(
     phone_number: str,
     password: str,
     student_id: int,
+    department: str,
     device_id: Optional[str] = None,
     status_message: Optional[str] = "안녕하세요!",
     profile_image: Optional[str] = None,
@@ -116,6 +117,7 @@ def create_user(
             device_id=device_id,
             status_message=status_message,
             profile_image=profile_image,
+            department=department
         )
         session.add(user)
         session.commit()
