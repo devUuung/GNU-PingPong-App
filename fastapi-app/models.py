@@ -24,8 +24,11 @@ class User(SQLModel, table=True, tablename="user"):
     game_count: int = Field(default=0)
     win_count: int = Field(default=0)
     lose_count: int = Field(default=0)
+
+    rank: int = Field(default=0)
     initial_score: float = Field(default=0)
     point: int = Field(default=0)
+    custom_point: int = Field(default=0)
     is_admin: bool = Field(default=False)
     profile_image: Optional[str] = Field(default=None)
     status_message: Optional[str] = Field(default="안녕하세요!")

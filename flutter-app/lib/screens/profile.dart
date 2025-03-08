@@ -147,7 +147,7 @@ class _MyInfoPageState extends State<MyInfoPage> {
                   InfoRow(label: '학번', value: '${userInfo.studentId}'),
                   InfoRow(
                       label: '부수 / 승점',
-                      value: '${userInfo.point}부 / ${userInfo.point}'),
+                      value: '${userInfo.rank}부 / ${userInfo.customPoint}'),
                   // 메뉴 항목들
                   SettingsListItem(
                     title: '비밀번호 재설정',

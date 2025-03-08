@@ -90,36 +90,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-# 파일 경로를 URL로 변환하는 함수
-def get_file_url(file_path: str) -> str:
-    if not file_path:
-        return None
-
-    # 파일 경로에서 static 폴더 이후의 경로만 추출
-    if file_path.startswith("static/"):
-        relative_path = file_path
-    else:
-        relative_path = f"static/{os.path.basename(file_path)}"
-
-    # 서버 URL 기반으로 완전한 URL 생성
-    base_url = f"{settings.SERVER_HOST}:{settings.PORT}"  # 실제 서버 URL로 변경해야 함
-    return f"{base_url}/{relative_path}"
-
-
-# 사용자 정보를 응답용으로 가공하는 함수
-def prepare_user_response(user: User) -> dict:
-    user_data = jsonable_encoder(user)
-
-    # 프로필 이미지 URL 추가
-    if user.profile_image:
-        user_data["profile_image_url"] = get_file_url(user.profile_image)
-    else:
-        # 기본 프로필 이미지 URL 설정
-        user_data["profile_image_url"] = get_file_url(DEFAULT_PROFILE_IMAGE)
-
-    return user_data
-
-
 # 로그인 요청 바디 모델
 class LoginData(BaseModel):
     student_id: str
@@ -197,30 +167,6 @@ class SignupData(BaseModel):
     phone: str
     password: str
     device_id: Optional[str] = None  # device_id 필드 추가
-
-
-@app.post("/api/signup")
-def signup(data: SignupData):
-    # 삭제: 라우터에 동일 기능이 있음
-    pass
-
-
-@app.post("/api/upload-profile-image")
-async def upload_profile_image(file: UploadFile = File(...)):
-    # 삭제: 라우터에 동일 기능이 있음
-    pass
-
-
-@app.get("/api/userinfo/{user_id}")
-def get_user_info(user_id: str):
-    # 삭제: 라우터에 동일 기능이 있음
-    pass
-
-
-@app.get("/api/usersinfo")
-def get_users_info():
-    # 삭제: 라우터에 동일 기능이 있음
-    pass
 
 
 @app.put("/api/userinfo/{user_id}")

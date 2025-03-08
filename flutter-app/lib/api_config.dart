@@ -9,7 +9,7 @@ class ApiConfig {
   // static const String baseUrl = 'http://10.0.2.2:8000/api/v1';
 
   // 실제 서버 URL (배포 시 사용)
-  static const String baseUrl = 'http://117.16.153.235:8000/api/v1';
+  static const String baseUrl = 'http://117.16.153.235:1200/api/v1';
 
   /// 회원가입 API URL
   static const String signUp = '$baseUrl/users/signup';

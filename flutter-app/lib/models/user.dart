@@ -16,7 +16,8 @@ class User {
   final bool isAdmin;
   final String? deviceId;
   final DateTime createdAt;
-
+  final int customPoint;
+  final int rank;
   User({
     required this.userId,
     required this.username,
@@ -33,6 +34,8 @@ class User {
     this.point = 0,
     this.isAdmin = false,
     this.deviceId,
+    this.customPoint = 0,
+    this.rank = 0,
     required this.createdAt,
   });
 
@@ -54,9 +57,11 @@ class User {
       point: json['point'] ?? 0,
       isAdmin: json['is_admin'] ?? false,
       deviceId: json['device_id'],
+      customPoint: json['custom_point'] ?? 0,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
+      rank: json['rank'] ?? 0,
     );
   }
 
@@ -79,6 +84,8 @@ class User {
       'is_admin': isAdmin,
       'device_id': deviceId,
       'created_at': createdAt.toIso8601String(),
+      'custom_point': customPoint,
+      'rank': rank,
     };
   }
 
@@ -95,6 +102,8 @@ class User {
     int? loseCount,
     int? point,
     String? deviceId,
+    int? customPoint,
+    int? rank,
   }) {
     return User(
       userId: this.userId,
@@ -112,7 +121,9 @@ class User {
       point: point ?? this.point,
       isAdmin: this.isAdmin,
       deviceId: deviceId ?? this.deviceId,
+      customPoint: customPoint ?? this.customPoint,
       createdAt: this.createdAt,
+      rank: rank ?? this.rank,
     );
   }
 }
