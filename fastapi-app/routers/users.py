@@ -355,7 +355,7 @@ async def get_all_match_requests(current_user: User = Depends(get_current_active
     """
     match_requests = read_all_active_match_requests()
     user_ids = [request.user_id for request in match_requests]
-    current_user_id = current_user["user_id"]
+    current_user_id = current_user.user_id
 
     with Session(engine) as session:
         # 요청한 사용자들의 정보 조회
@@ -365,9 +365,9 @@ async def get_all_match_requests(current_user: User = Depends(get_current_active
         # 사용자 정보와 요청 정보 매핑
         result = []
         for user in users:
-            print(user)
             try:
-                user_id = user["user_id"]
+                user = user[0] # tuple of User 로 반환이 되서 임시적으로 해결
+                user_id = user.user_id
 
                 if user_id is None:
                     print(f"주의: user 객체에 user_id 필드 없음: {dir(user)}")
@@ -393,7 +393,7 @@ async def get_all_match_requests(current_user: User = Depends(get_current_active
                     )
             except Exception as e:
                 print(
-                    f"사용자 처리 중 오류: {e}, 사용자 ID: {getattr(user, 'user_id', 'unknown')}"
+                    f"사용자 처리 중 오류: {e}, 사용자 ID: {user}"
                 )
                 continue
 
