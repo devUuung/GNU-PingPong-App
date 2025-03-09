@@ -99,16 +99,16 @@ class UserService {
   Future<List<User>> getAllUsers() async {
     try {
       final response = await _apiClient.get(ApiConfig.allUsersInfo);
-
       if (response['success'] == true && response['users'] != null) {
-        final List<dynamic> usersData = response['users'];
-        return usersData.map((user) => User.fromJson(user)).toList();
+        return (response['users'] as List)
+            .map((userJson) => User.fromJson(userJson))
+            .toList();
+      } else {
+        throw Exception('사용자 정보를 불러오는데 실패했습니다: ${response['message']}');
       }
-
-      return [];
     } catch (e) {
-      debugPrint('모든 사용자 정보를 가져오는 중 오류 발생: $e');
-      return [];
+      debugPrint('getAllUsers 오류: $e');
+      rethrow;
     }
   }
 
@@ -223,5 +223,73 @@ class UserService {
   /// 로그아웃 메서드
   Future<void> logout() async {
     await _apiClient.deleteToken();
+  }
+
+  /// 경기 입력 요청을 생성하는 메서드
+  Future<MatchRequest> createMatchRequest() async {
+    try {
+      final response = await _apiClient.post(ApiConfig.createMatchRequest);
+      if (response['success'] == true) {
+        return MatchRequest(
+          requestId: response['request_id'],
+          userId: response['user_id'],
+          createdAt: DateTime.parse(response['created_at']),
+          isActive: response['is_active'],
+        );
+      } else {
+        throw Exception('경기 입력 요청 생성에 실패했습니다: ${response['message']}');
+      }
+    } catch (e) {
+      debugPrint('createMatchRequest 오류: $e');
+      rethrow;
+    }
+  }
+
+  /// 내 경기 입력 요청 상태를 확인하는 메서드
+  Future<MatchRequest?> getMyMatchRequest() async {
+    try {
+      final response = await _apiClient.get(ApiConfig.getMyMatchRequest);
+      if (response['success'] == true) {
+        return MatchRequest(
+          requestId: response['request_id'],
+          userId: response['user_id'],
+          createdAt: DateTime.parse(response['created_at']),
+          isActive: response['is_active'],
+        );
+      } else {
+        return null; // 요청이 없는 경우
+      }
+    } catch (e) {
+      debugPrint('getMyMatchRequest 오류: $e');
+      return null;
+    }
+  }
+
+  /// 모든 활성화된 경기 입력 요청을 가져오는 메서드
+  Future<List<MatchRequestWithUser>> getAllMatchRequests() async {
+    try {
+      final response = await _apiClient.get(ApiConfig.getAllMatchRequests);
+      if (response['success'] == true && response['match_requests'] != null) {
+        return (response['match_requests'] as List)
+            .map((requestJson) => MatchRequestWithUser.fromJson(requestJson))
+            .toList();
+      } else {
+        throw Exception('경기 입력 요청 목록을 불러오는데 실패했습니다: ${response['message']}');
+      }
+    } catch (e) {
+      debugPrint('getAllMatchRequests 오류: $e');
+      rethrow;
+    }
+  }
+
+  /// 내 경기 입력 요청을 취소하는 메서드
+  Future<bool> cancelMatchRequest() async {
+    try {
+      final response = await _apiClient.delete(ApiConfig.cancelMatchRequest);
+      return response['success'] == true;
+    } catch (e) {
+      debugPrint('cancelMatchRequest 오류: $e');
+      return false;
+    }
   }
 }

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from datetime import timedelta
 from sqlmodel import Session
 import bcrypt
+from sqlalchemy.sql import select
 
 from core.config import settings
 from core.auth import create_access_token, get_current_active_user, get_admin_user
@@ -19,6 +20,11 @@ from models import (
     read_users_by_all,
     update_user,
     engine,
+    create_match_request,
+    read_match_request_by_user_id,
+    read_all_active_match_requests,
+    deactivate_match_request_by_user_id,
+    MatchRequest,
 )
 
 router = APIRouter(prefix=f"{settings.API_V1_STR}/users", tags=["users"])
@@ -320,4 +326,94 @@ async def update_user_profile(
 # 토큰 검증 API
 @router.post("/validate-token")
 async def validate_token(current_user: User = Depends(get_current_active_user)):
-    return {"success": True, "valid": True, "user_id": current_user.user_id}
+    return {"valid": True, "user_id": current_user.user_id}
+
+
+# 경기 입력 요청 관련 엔드포인트
+@router.post("/match-request")
+async def create_new_match_request(
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    현재 사용자의 경기 입력 요청을 생성합니다.
+    이미 활성화된 요청이 있으면 기존 요청을 반환합니다.
+    """
+    match_request = create_match_request(current_user.user_id)
+    return {
+        "success": True,
+        "request_id": match_request.request_id,
+        "user_id": match_request.user_id,
+        "created_at": match_request.created_at,
+        "is_active": match_request.is_active,
+    }
+
+
+@router.get("/match-request/me")
+async def get_my_match_request(current_user: User = Depends(get_current_active_user)):
+    """
+    현재 사용자의 활성화된 경기 입력 요청을 조회합니다.
+    """
+    match_request = read_match_request_by_user_id(current_user.user_id)
+    if not match_request:
+        return {"success": False, "message": "활성화된 경기 입력 요청이 없습니다."}
+
+    return {
+        "success": True,
+        "request_id": match_request.request_id,
+        "user_id": match_request.user_id,
+        "created_at": match_request.created_at,
+        "is_active": match_request.is_active,
+    }
+
+
+@router.get("/match-request/all")
+async def get_all_match_requests(current_user: User = Depends(get_current_active_user)):
+    """
+    모든 활성화된 경기 입력 요청을 조회합니다.
+    """
+    match_requests = read_all_active_match_requests()
+    user_ids = [request.user_id for request in match_requests]
+
+    with Session(engine) as session:
+        # 요청한 사용자들의 정보 조회
+        statement = select(User).where(User.user_id.in_(user_ids))
+        users = session.exec(statement).all()
+
+        # 사용자 정보와 요청 정보 매핑
+        result = []
+        for user in users:
+            # 현재 사용자는 제외
+            if user.user_id == current_user.user_id:
+                continue
+
+            # 응답 데이터 준비
+            user_data = prepare_user_response(user)
+            match_request = next(
+                (r for r in match_requests if r.user_id == user.user_id), None
+            )
+
+            if match_request:
+                result.append(
+                    {
+                        "user": user_data,
+                        "request_id": match_request.request_id,
+                        "created_at": match_request.created_at,
+                        "is_active": match_request.is_active,
+                    }
+                )
+
+    return {"success": True, "match_requests": result}
+
+
+@router.delete("/match-request/me")
+async def cancel_my_match_request(
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    현재 사용자의 경기 입력 요청을 비활성화합니다.
+    """
+    match_request = deactivate_match_request_by_user_id(current_user.user_id)
+    if not match_request:
+        return {"success": False, "message": "활성화된 경기 입력 요청이 없습니다."}
+
+    return {"success": True, "message": "경기 입력 요청이 취소되었습니다."}

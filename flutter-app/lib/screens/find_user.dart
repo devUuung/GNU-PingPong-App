@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'win_lost_select.dart';
 import 'package:flutter_app/providers/users_info_provider.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:flutter_app/services/user_service.dart';
 import 'dart:async';
 
 class FindUserPage extends StatefulWidget {
@@ -13,155 +13,200 @@ class FindUserPage extends StatefulWidget {
 }
 
 class _FindUserPageState extends State<FindUserPage> {
-  // 블루투스 관련 변수
-  late FlutterBluetoothSerial _bluetooth;
-  List<BluetoothDiscoveryResult> _results = [];
-  bool _isDiscovering = false;
-  StreamSubscription<BluetoothDiscoveryResult>? _streamSubscription;
-  List<dynamic> _nearbyUsers = [];
+  final UserService _userService = UserService();
+  List<dynamic> _matchUsers = [];
+  bool _isLoading = false;
+  bool _isRequestingMatch = false;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-    // 블루투스 인스턴스 초기화
-    _bluetooth = FlutterBluetoothSerial.instance;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<UsersInfoProvider>(context, listen: false)
           .fetchUsersInfo(context);
       Provider.of<UsersInfoProvider>(context, listen: false)
           .fetchUserInfo(context);
-      // 블루투스 검색 시작
-      _startDiscovery();
+
+      // 사용자 매칭 상태 확인
+      _checkMatchStatus();
     });
   }
 
   @override
   void dispose() {
-    // 블루투스 검색 종료
-    _streamSubscription?.cancel();
+    // 매칭 요청 활성화 상태면 취소
+    if (_isRequestingMatch) {
+      _cancelMatchRequest();
+    }
+    // 타이머 정리
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
-  // 블루투스 검색 시작 메서드
-  void _startDiscovery() async {
+  // 매칭 상태 확인
+  Future<void> _checkMatchStatus() async {
     setState(() {
-      _isDiscovering = true;
-      _results = [];
-      _nearbyUsers = [];
+      _isLoading = true;
     });
 
     try {
-      // 블루투스 권한 요청
-      bool? isEnabled;
-      try {
-        isEnabled = await _bluetooth.isEnabled;
-      } catch (e) {
-        print('블루투스 활성화 상태 확인 중 오류: $e');
-        // 일부 기기에서는 isEnabled가 실패할 수 있으므로
-        // 기본값으로 진행
-        isEnabled = false;
-      }
+      // 내 매칭 요청 조회
+      final myRequest = await _userService.getMyMatchRequest();
 
-      if (isEnabled != true) {
-        try {
-          await _bluetooth.requestEnable();
-        } catch (e) {
-          print('블루투스 활성화 요청 중 오류: $e');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('블루투스를 활성화해주세요.'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-          setState(() {
-            _isDiscovering = false;
-          });
-          return;
-        }
-      }
-
-      // 블루투스 검색 시작
-      try {
-        _streamSubscription = _bluetooth.startDiscovery().listen(
-          (result) {
-            setState(() {
-              final existingIndex = _results.indexWhere(
-                (element) => element.device.address == result.device.address,
-              );
-              if (existingIndex >= 0) {
-                _results[existingIndex] = result;
-              } else {
-                _results.add(result);
-                print(
-                    '발견된 기기: ${result.device.name} - ${result.device.address}');
-              }
-              _updateNearbyUsers();
-            });
-          },
-          onDone: () {
-            setState(() {
-              _isDiscovering = false;
-            });
-          },
-          onError: (error) {
-            print('블루투스 검색 리스너 오류: $error');
-            setState(() {
-              _isDiscovering = false;
-            });
-          },
-        );
-
-        // 60초 후 검색 종료
-        await Future.delayed(const Duration(seconds: 60));
-        if (_streamSubscription != null) {
-          _streamSubscription!.cancel();
-          setState(() {
-            _isDiscovering = false;
-          });
-        }
-      } catch (e) {
-        print('블루투스 검색 시작 중 오류: $e');
+      // 이미 매칭 요청 중인 경우
+      if (myRequest != null) {
         setState(() {
-          _isDiscovering = false;
+          _isRequestingMatch = true;
         });
+        // 다른 매칭 요청 사용자 조회
+        await _loadMatchRequests();
+        // 자동 새로고침 타이머 시작
+        _startRefreshTimer();
+      }
+    } catch (e) {
+      print('매칭 상태 확인 중 오류: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('매칭 상태 확인 중 오류가 발생했습니다: $e'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // 매칭 요청 시작
+  Future<void> _startMatchRequest() async {
+    if (_isRequestingMatch) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _userService.createMatchRequest();
+      setState(() {
+        _isRequestingMatch = true;
+      });
+
+      // 다른 매칭 요청 사용자 조회
+      await _loadMatchRequests();
+
+      // 자동 새로고침 타이머 시작
+      _startRefreshTimer();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('경기 입력 상태가 시작되었습니다.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      print('매칭 요청 시작 중 오류: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('매칭 요청 시작 중 오류가 발생했습니다: $e'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // 매칭 요청 취소
+  Future<void> _cancelMatchRequest() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final success = await _userService.cancelMatchRequest();
+      if (success) {
+        setState(() {
+          _isRequestingMatch = false;
+          _matchUsers = [];
+        });
+
+        // 타이머 취소
+        _refreshTimer?.cancel();
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('블루투스 검색 중 오류가 발생했습니다: $e'),
-            duration: const Duration(seconds: 3),
+          const SnackBar(
+            content: Text('경기 입력 상태가 취소되었습니다.'),
+            duration: Duration(seconds: 2),
           ),
         );
       }
     } catch (e) {
-      print('블루투스 검색 중 오류 발생: $e');
+      print('매칭 요청 취소 중 오류: $e');
+    } finally {
       setState(() {
-        _isDiscovering = false;
+        _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('블루투스 오류: $e'),
-          duration: const Duration(seconds: 3),
-        ),
-      );
     }
   }
 
-  // 블루투스로 발견된 기기와 사용자 정보 매칭
-  void _updateNearbyUsers() {
-    final usersProvider =
-        Provider.of<UsersInfoProvider>(context, listen: false);
-    final allUsers = usersProvider.users ?? [];
+  // 자동 새로고침 타이머 시작
+  void _startRefreshTimer() {
+    // 기존 타이머 취소
+    _refreshTimer?.cancel();
+
+    // 10초마다 자동 갱신
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (_isRequestingMatch && mounted) {
+        _loadMatchRequests();
+      }
+    });
+  }
+
+  // 매칭 요청 목록 로드
+  Future<void> _loadMatchRequests() async {
+    if (!mounted) return;
 
     setState(() {
-      _nearbyUsers = allUsers.where((user) {
-        String? deviceId = user.deviceId;
-        // deviceId가 null이 아니고, 발견된 블루투스 기기 중에 일치하는 것이 있으면 추가
-        return deviceId != null &&
-            _results.any((result) =>
-                result.device.address == deviceId ||
-                result.device.name == deviceId);
-      }).toList();
+      _isLoading = true;
     });
+
+    try {
+      final requests = await _userService.getAllMatchRequests();
+      if (mounted) {
+        setState(() {
+          _matchUsers = requests.map((req) => req.user).toList();
+        });
+      }
+    } catch (e) {
+      print('매칭 요청 목록 로드 중 오류: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('매칭 요청 목록 로드 중 오류가 발생했습니다: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // 수동 새로고침
+  Future<void> _handleRefresh() async {
+    if (_isRequestingMatch) {
+      await _loadMatchRequests();
+    }
+    return Future.value();
   }
 
   @override
@@ -188,7 +233,7 @@ class _FindUserPageState extends State<FindUserPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('주변 사람 찾는중..'),
+        title: Text(_isRequestingMatch ? '매칭 대기중..' : '경기 입력하기'),
         centerTitle: true,
         elevation: 0,
         backgroundColor: const Color(0xFFFEF7FF),
@@ -197,85 +242,154 @@ class _FindUserPageState extends State<FindUserPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
-          // 블루투스 검색 다시 시작 버튼
+          // 경기 입력 상태 전환 버튼
           IconButton(
-            icon: Icon(
-                _isDiscovering ? Icons.bluetooth_searching : Icons.bluetooth),
-            onPressed: _isDiscovering ? null : _startDiscovery,
+            icon: Icon(_isRequestingMatch
+                ? Icons.cancel_outlined
+                : Icons.sports_tennis),
+            onPressed: _isLoading
+                ? null
+                : (_isRequestingMatch
+                    ? _cancelMatchRequest
+                    : _startMatchRequest),
+            tooltip: _isRequestingMatch ? '경기 입력 상태 취소' : '경기 입력 상태 시작',
           ),
         ],
       ),
       backgroundColor: const Color(0xFFFEF7FF),
       body: SafeArea(
-        child: Container(
-          color: const Color(0xFFFEF7FF),
-          child: Column(
-            children: [
-              // 검색 상태 표시
-              if (_isDiscovering)
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Theme.of(context).primaryColor,
+        child: RefreshIndicator(
+          onRefresh: _handleRefresh,
+          child: Container(
+            color: const Color(0xFFFEF7FF),
+            child: Column(
+              children: [
+                // 상태 표시
+                if (_isLoading)
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).primaryColor,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text('블루투스로 주변 사용자를 검색 중...'),
-                    ],
-                  ),
-                ),
-
-              // 발견된 사용자가 없을 경우
-              if (_nearbyUsers.isEmpty && !_isDiscovering)
-                const Expanded(
-                  child: Center(
-                    child: Text(
-                      '주변에 사용자가 없습니다.\n블루투스를 활성화하고 다시 시도해보세요.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16),
+                        const SizedBox(width: 10),
+                        const Text('매칭 가능한 사용자 검색 중...'),
+                      ],
                     ),
                   ),
-                ),
 
-              // 발견된 사용자 목록
-              Expanded(
-                child: GridView.builder(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 20,
-                    mainAxisSpacing: 20,
+                // 경기 입력 상태 안내 메시지
+                if (_isRequestingMatch)
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Container(
+                      padding: const EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        '경기 입력 상태가 활성화되었습니다.\n'
+                        '화면을 아래로 당겨 새로고침하여 다른 사용자를 찾을 수 있습니다.\n'
+                        '게임 상대를 선택하여 경기를 입력해보세요!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 14),
+                      ),
+                    ),
                   ),
-                  itemCount: _nearbyUsers.length,
-                  itemBuilder: (context, index) {
-                    final student = _nearbyUsers[index];
-                    final String studentName = student.username ?? '이름없음';
-                    final int userId = student.userId ?? 0;
-                    final String myName =
-                        usersProvider.userInfo?.username ?? '';
-                    final int myUserId = usersProvider.userInfo?.userId ?? 0;
-                    final String? profileImage = student.profileImageUrl;
 
-                    return _buildStudentItem(
-                      context,
-                      myName,
-                      myUserId,
-                      studentName,
-                      userId,
-                      profileImage,
-                    );
-                  },
-                ),
-              ),
-            ],
+                // 경기 입력 상태 시작 안내
+                if (!_isRequestingMatch)
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.sports_tennis,
+                            size: 80,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            '경기 입력을 시작하려면\n오른쪽 상단의 버튼을 눌러주세요.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: _startMatchRequest,
+                            icon: const Icon(Icons.play_arrow),
+                            label: const Text('경기 입력 시작'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12),
+                              textStyle: const TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                // 발견된 사용자가 없을 경우
+                if (_matchUsers.isEmpty && _isRequestingMatch)
+                  const Expanded(
+                    child: Center(
+                      child: Text(
+                        '현재 경기 입력 중인 다른 사용자가 없습니다.\n'
+                        '잠시 후 다시 시도해보세요.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+
+                // 발견된 사용자 목록
+                if (_matchUsers.isNotEmpty)
+                  Expanded(
+                    child: GridView.builder(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 20,
+                        mainAxisSpacing: 20,
+                      ),
+                      itemCount: _matchUsers.length,
+                      itemBuilder: (context, index) {
+                        final student = _matchUsers[index];
+                        final String studentName =
+                            student['username'] ?? '이름없음';
+                        final int userId = student['user_id'] ?? 0;
+                        final String myName =
+                            usersProvider.userInfo?.username ?? '';
+                        final int myUserId =
+                            usersProvider.userInfo?.userId ?? 0;
+                        final String? profileImage =
+                            student['profile_image_url'];
+
+                        return _buildStudentItem(
+                          context,
+                          myName,
+                          myUserId,
+                          studentName,
+                          userId,
+                          profileImage,
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

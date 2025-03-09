@@ -75,6 +75,14 @@ class PostParticipant(SQLModel, table=True, tablename="post_participant"):
     user_id: int = Field(foreign_key="user.user_id", primary_key=True)
 
 
+# 경기 입력 요청을 저장하는 모델
+class MatchRequest(SQLModel, table=True, tablename="match_request"):
+    request_id: int = Field(primary_key=True, default=None)
+    user_id: int = Field(foreign_key="user.user_id")
+    created_at: datetime = Field(default=datetime.now())
+    is_active: bool = Field(default=True)
+
+
 # 데이터베이스 엔진 생성 (여기서는 SQLite 메모리 데이터베이스 사용)
 engine = create_engine(os.getenv("CONN_URL"))
 
@@ -117,7 +125,7 @@ def create_user(
             device_id=device_id,
             status_message=status_message,
             profile_image=profile_image,
-            department=department
+            department=department,
         )
         session.add(user)
         session.commit()
@@ -451,14 +459,84 @@ def read_post_participants_by_user_id(user_id: int):
 
 def delete_post_participant(post_id: int, user_id: int):
     with Session(engine) as session:
-        post_participant = session.exec(
-            select(PostParticipant).where(
-                (PostParticipant.post_id == post_id)
-                & (PostParticipant.user_id == user_id)
-            )
-        ).first()
-        if not post_participant:
-            raise HTTPException(status_code=404, detail="Post participant not found")
-        session.delete(post_participant)
+        statement = select(PostParticipant).where(
+            PostParticipant.post_id == post_id, PostParticipant.user_id == user_id
+        )
+        post_participant = session.exec(statement).first()
+        if post_participant:
+            session.delete(post_participant)
+            session.commit()
+        return {"message": "참가자가 삭제되었습니다."}
+
+
+# 경기 입력 요청 생성
+def create_match_request(user_id: int):
+    with Session(engine) as session:
+        # 기존 활성화된 요청이 있는지 확인
+        statement = select(MatchRequest).where(
+            MatchRequest.user_id == user_id, MatchRequest.is_active == True
+        )
+        existing_request = session.exec(statement).first()
+
+        # 이미 요청이 있으면 기존 요청 반환
+        if existing_request:
+            return existing_request
+
+        # 새 요청 생성
+        match_request = MatchRequest(user_id=user_id)
+        session.add(match_request)
         session.commit()
-        return {"detail": "Post participant deleted successfully"}
+        session.refresh(match_request)
+        return match_request
+
+
+# 경기 입력 요청 조회
+def read_match_request(request_id: int):
+    with Session(engine) as session:
+        statement = select(MatchRequest).where(MatchRequest.request_id == request_id)
+        return session.exec(statement).first()
+
+
+# 사용자ID로 경기 입력 요청 조회
+def read_match_request_by_user_id(user_id: int):
+    with Session(engine) as session:
+        statement = select(MatchRequest).where(
+            MatchRequest.user_id == user_id, MatchRequest.is_active == True
+        )
+        return session.exec(statement).first()
+
+
+# 모든 활성화된 경기 입력 요청 조회
+def read_all_active_match_requests():
+    with Session(engine) as session:
+        statement = select(MatchRequest).where(MatchRequest.is_active == True)
+        return session.exec(statement).all()
+
+
+# 경기 입력 요청 비활성화
+def deactivate_match_request(request_id: int):
+    with Session(engine) as session:
+        match_request = read_match_request(request_id)
+        if match_request:
+            match_request.is_active = False
+            session.add(match_request)
+            session.commit()
+            session.refresh(match_request)
+            return match_request
+        return None
+
+
+# 사용자ID로 경기 입력 요청 비활성화
+def deactivate_match_request_by_user_id(user_id: int):
+    with Session(engine) as session:
+        statement = select(MatchRequest).where(
+            MatchRequest.user_id == user_id, MatchRequest.is_active == True
+        )
+        match_request = session.exec(statement).first()
+        if match_request:
+            match_request.is_active = False
+            session.add(match_request)
+            session.commit()
+            session.refresh(match_request)
+            return match_request
+        return None

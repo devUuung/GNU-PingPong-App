@@ -34,4 +34,16 @@ class ApiConfig {
 
   /// 모집 공고 목록 조회 API URL
   static const String recruitPosts = '$baseUrl/recruit/posts';
+
+  /// 경기 입력 요청 생성 API URL
+  static const String createMatchRequest = '$baseUrl/users/match-request';
+
+  /// 내 경기 입력 요청 조회 API URL
+  static const String getMyMatchRequest = '$baseUrl/users/match-request/me';
+
+  /// 모든 경기 입력 요청 조회 API URL
+  static const String getAllMatchRequests = '$baseUrl/users/match-request/all';
+
+  /// 내 경기 입력 요청 취소 API URL
+  static const String cancelMatchRequest = '$baseUrl/users/match-request/me';
 }
