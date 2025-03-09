@@ -373,6 +373,7 @@ async def get_all_match_requests(current_user: User = Depends(get_current_active
     """
     match_requests = read_all_active_match_requests()
     user_ids = [request.user_id for request in match_requests]
+    current_user_id = getattr(current_user, "user_id", None)
 
     with Session(engine) as session:
         # 요청한 사용자들의 정보 조회
@@ -382,25 +383,37 @@ async def get_all_match_requests(current_user: User = Depends(get_current_active
         # 사용자 정보와 요청 정보 매핑
         result = []
         for user in users:
-            # 현재 사용자는 제외
-            if user.user_id == current_user.user_id:
-                continue
+            try:
+                # 현재 사용자는 제외 (안전하게 속성 접근)
+                user_id = getattr(user, "user_id", None)
 
-            # 응답 데이터 준비
-            user_data = prepare_user_response(user)
-            match_request = next(
-                (r for r in match_requests if r.user_id == user.user_id), None
-            )
+                if user_id is None:
+                    print(f"주의: user 객체에 user_id 필드 없음: {dir(user)}")
+                    continue
 
-            if match_request:
-                result.append(
-                    {
-                        "user": user_data,
-                        "request_id": match_request.request_id,
-                        "created_at": match_request.created_at,
-                        "is_active": match_request.is_active,
-                    }
+                if user_id == current_user_id:
+                    continue
+
+                # 응답 데이터 준비
+                user_data = prepare_user_response(user)
+                match_request = next(
+                    (r for r in match_requests if r.user_id == user_id), None
                 )
+
+                if match_request:
+                    result.append(
+                        {
+                            "user": user_data,
+                            "request_id": match_request.request_id,
+                            "created_at": match_request.created_at,
+                            "is_active": match_request.is_active,
+                        }
+                    )
+            except Exception as e:
+                print(
+                    f"사용자 처리 중 오류: {e}, 사용자 ID: {getattr(user, 'user_id', 'unknown')}"
+                )
+                continue
 
     return {"success": True, "match_requests": result}
 

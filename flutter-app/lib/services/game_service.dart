@@ -13,10 +13,23 @@ class GameService {
       final response = await _apiClient.get('${ApiConfig.gamesinfo}/all');
 
       if (response['success'] == true && response['data'] != null) {
-        final List<dynamic> gamesData = response['data'];
-        return gamesData.map((game) => Game.fromJson(game)).toList();
+        // data가 리스트가 맞는지 확인
+        if (response['data'] is List) {
+          final List<dynamic> gamesData = response['data'];
+          return gamesData.map((game) => Game.fromJson(game)).toList();
+        } else {
+          debugPrint('getAllGames 오류: 예상치 못한 응답 형식 - data가 리스트가 아님');
+          debugPrint('응답: $response');
+          return [];
+        }
+      } else if (response['success'] == true) {
+        // GET /games/all 엔드포인트가 다른 형식의 데이터를 반환하는 경우
+        debugPrint('getAllGames: 게임 데이터가 없음');
+        return [];
       }
 
+      debugPrint('getAllGames 오류: 성공하지 않은 응답');
+      debugPrint('응답: $response');
       return [];
     } catch (e) {
       debugPrint('게임 정보를 가져오는 중 오류 발생: $e');
