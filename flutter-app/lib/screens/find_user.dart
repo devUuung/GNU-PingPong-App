@@ -187,10 +187,11 @@ class _FindUserPageState extends State<FindUserPage> {
 
     while (retryCount < maxRetries) {
       try {
-        final requests = await _userService.getAllMatchRequests();
+        final response = await _userService.getAllMatchRequests();
         if (mounted) {
           setState(() {
-            _matchUsers = requests.map((req) => req.user).toList();
+            // response는 MatchRequestWithUser 객체 리스트이므로, 각 객체의 user 속성을 추출
+            _matchUsers = response.map((req) => req.user).toList();
             _isLoading = false;
           });
         }

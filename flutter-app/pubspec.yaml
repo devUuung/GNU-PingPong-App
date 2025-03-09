@@ -31,9 +31,6 @@ dependencies:
 
   device_info_plus: ^10.1.2
 
-  # 네트워크 연결 상태 확인을 위한 패키지
-  connectivity_plus: ^3.0.6
-
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -348,24 +348,6 @@ async def create_new_match_request(
     }
 
 
-@router.get("/match-request/me")
-async def get_my_match_request(current_user: User = Depends(get_current_active_user)):
-    """
-    현재 사용자의 활성화된 경기 입력 요청을 조회합니다.
-    """
-    match_request = read_match_request_by_user_id(current_user.user_id)
-    if not match_request:
-        return {"success": False, "message": "활성화된 경기 입력 요청이 없습니다."}
-
-    return {
-        "success": True,
-        "request_id": match_request.request_id,
-        "user_id": match_request.user_id,
-        "created_at": match_request.created_at,
-        "is_active": match_request.is_active,
-    }
-
-
 @router.get("/match-request/all")
 async def get_all_match_requests(current_user: User = Depends(get_current_active_user)):
     """
@@ -373,7 +355,7 @@ async def get_all_match_requests(current_user: User = Depends(get_current_active
     """
     match_requests = read_all_active_match_requests()
     user_ids = [request.user_id for request in match_requests]
-    current_user_id = getattr(current_user, "user_id", None)
+    current_user_id = current_user["user_id"]
 
     with Session(engine) as session:
         # 요청한 사용자들의 정보 조회
@@ -383,9 +365,9 @@ async def get_all_match_requests(current_user: User = Depends(get_current_active
         # 사용자 정보와 요청 정보 매핑
         result = []
         for user in users:
+            print(user)
             try:
-                # 현재 사용자는 제외 (안전하게 속성 접근)
-                user_id = getattr(user, "user_id", None)
+                user_id = user["user_id"]
 
                 if user_id is None:
                     print(f"주의: user 객체에 user_id 필드 없음: {dir(user)}")
