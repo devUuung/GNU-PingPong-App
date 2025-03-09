@@ -11,8 +11,8 @@ class ApiClient {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   // HTTP 요청 타임아웃 설정
-  static const Duration connectionTimeout = Duration(seconds: 15);
-  static const Duration receiveTimeout = Duration(seconds: 15);
+  static const Duration connectionTimeout = Duration(seconds: 30);
+  static const Duration receiveTimeout = Duration(seconds: 30);
 
   factory ApiClient() {
     return _instance;

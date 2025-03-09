@@ -285,9 +285,14 @@ class UserService {
     try {
       final response = await _apiClient.get(ApiConfig.getAllMatchRequests);
       if (response['success'] == true && response['match_requests'] != null) {
-        return (response['match_requests'] as List)
-            .map((requestJson) => MatchRequestWithUser.fromJson(requestJson))
-            .toList();
+        try {
+          return (response['match_requests'] as List)
+              .map((requestJson) => MatchRequestWithUser.fromJson(requestJson))
+              .toList();
+        } catch (parseError) {
+          debugPrint('매치 요청 파싱 오류: $parseError');
+          throw Exception('데이터베이스 구조에 문제가 있습니다: $parseError');
+        }
       } else {
         throw Exception('경기 입력 요청 목록을 불러오는데 실패했습니다: ${response['message']}');
       }

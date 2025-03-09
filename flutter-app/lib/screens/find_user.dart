@@ -147,6 +147,12 @@ class _FindUserPageState extends State<FindUserPage> {
       }
     } catch (e) {
       print('매칭 요청 취소 중 오류: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('매칭 요청 취소 중 오류가 발생했습니다.\n서버 관리자에게 문의하세요.'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
     } finally {
       setState(() {
         _isLoading = false;
@@ -175,28 +181,46 @@ class _FindUserPageState extends State<FindUserPage> {
       _isLoading = true;
     });
 
-    try {
-      final requests = await _userService.getAllMatchRequests();
-      if (mounted) {
-        setState(() {
-          _matchUsers = requests.map((req) => req.user).toList();
-        });
-      }
-    } catch (e) {
-      print('매칭 요청 목록 로드 중 오류: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('매칭 요청 목록 로드 중 오류가 발생했습니다: $e'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+    int retryCount = 0;
+    const int maxRetries = 3;
+    const Duration retryDelay = Duration(seconds: 2);
+
+    while (retryCount < maxRetries) {
+      try {
+        final requests = await _userService.getAllMatchRequests();
+        if (mounted) {
+          setState(() {
+            _matchUsers = requests.map((req) => req.user).toList();
+            _isLoading = false;
+          });
+        }
+        return; // 성공하면 함수 종료
+      } catch (e) {
+        retryCount++;
+        print('매칭 요청 목록 로드 중 오류($retryCount/$maxRetries): $e');
+
+        if (retryCount >= maxRetries) {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content:
+                    Text('서버 오류가 발생했습니다.\n서버 관리자에게 "user_id 필드 누락" 문제를 문의하세요.'),
+                duration: const Duration(seconds: 5),
+                action: SnackBarAction(
+                  label: '닫기',
+                  onPressed: () {},
+                ),
+              ),
+            );
+          }
+          break;
+        } else {
+          // 잠시 대기 후 재시도
+          await Future.delayed(retryDelay);
+        }
       }
     }
   }
