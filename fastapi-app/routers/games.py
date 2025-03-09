@@ -90,14 +90,30 @@ async def create_new_game(
         winner.game_count += 1
         winner.win_count += 1
         winner.point += 1
-        update_user(winner)
+        update_user(
+            winner,
+            {
+                "score": winner.score,
+                "game_count": winner.game_count,
+                "win_count": winner.win_count,
+                "point": winner.point,
+            },
+        )
 
         # 패자 정보 업데이트
         loser.score += minus_score
         loser.game_count += 1
         loser.lose_count += 1
         loser.point = 0
-        update_user(loser)
+        update_user(
+            loser,
+            {
+                "score": loser.score,
+                "game_count": loser.game_count,
+                "lose_count": loser.lose_count,
+                "point": loser.point,
+            },
+        )
 
         # 게임 정보 저장
         new_game = Game(
