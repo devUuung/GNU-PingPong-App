@@ -254,12 +254,12 @@ async def change_password(
 
 
 # 모든 사용자 조회 API (일반 사용자도 접근 가능)
-@router.get("/all", response_model=List[dict])
+@router.get("/all")
 async def get_all_users(current_user: User = Depends(get_current_active_user)):
     users = read_users_by_all()
 
     # 모든 사용자가 유저 목록에 접근 가능하도록 제한 해제
-    return [prepare_user_response(user) for user in users]
+    return {"success": True, "users": [prepare_user_response(user) for user in users]}
 
 
 # 특정 사용자 조회 API

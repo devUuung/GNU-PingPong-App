@@ -70,25 +70,37 @@ class UsersInfoProvider extends ChangeNotifier {
     try {
       // 먼저 현재 사용자 정보를 확인
       if (_currentUser == null) {
-        _currentUser = await _userService.getCurrentUser();
+        try {
+          _currentUser = await _userService.getCurrentUser();
 
-        // 프로필 이미지 URL 수정
-        if (_currentUser != null) {
-          _currentUser = _ensureValidProfileImageUrl(_currentUser!);
+          // 프로필 이미지 URL 수정
+          if (_currentUser != null) {
+            _currentUser = _ensureValidProfileImageUrl(_currentUser!);
+          }
+        } catch (e) {
+          debugPrint('현재 사용자 정보 가져오기 실패: $e');
+          // 현재 사용자 정보를 가져오는데 실패해도 모든 사용자 정보를 계속 가져옴
         }
       }
 
       // 모든 사용자가 유저 목록을 볼 수 있도록 관리자 권한 체크 제거
-      _allUsers = await _userService.getAllUsers();
+      try {
+        _allUsers = await _userService.getAllUsers();
+        debugPrint('사용자 ${_allUsers?.length ?? 0}명 불러오기 성공');
 
-      // 각 사용자의 프로필 이미지 URL 확인 및 수정
-      if (_allUsers != null) {
-        _allUsers = _allUsers!
-            .map((user) => _ensureValidProfileImageUrl(user))
-            .toList();
+        // 각 사용자의 프로필 이미지 URL 확인 및 수정
+        if (_allUsers != null) {
+          _allUsers = _allUsers!
+              .map((user) => _ensureValidProfileImageUrl(user))
+              .toList();
+        }
+
+        return _allUsers;
+      } catch (e) {
+        _error = '사용자 정보를 가져오는 중 오류가 발생했습니다: $e';
+        debugPrint(_error);
+        return null;
       }
-
-      return _allUsers;
     } catch (e) {
       _error = '사용자 정보를 가져오는 중 오류가 발생했습니다: $e';
       debugPrint(_error);

@@ -99,12 +99,27 @@ class UserService {
   Future<List<User>> getAllUsers() async {
     try {
       final response = await _apiClient.get(ApiConfig.allUsersInfo);
+      debugPrint('사용자 목록 응답: ${response.toString()}');
+
       if (response['success'] == true && response['users'] != null) {
-        return (response['users'] as List)
-            .map((userJson) => User.fromJson(userJson))
+        final List<dynamic> usersJson = response['users'];
+        return usersJson
+            .map((userJson) {
+              try {
+                return User.fromJson(userJson);
+              } catch (e) {
+                debugPrint('사용자 객체 파싱 오류: $e');
+                debugPrint('문제가 있는 JSON: $userJson');
+                // 오류가 발생한 항목은 건너뛰고 계속 진행
+                return null;
+              }
+            })
+            .where((user) => user != null)
+            .cast<User>()
             .toList();
       } else {
-        throw Exception('사용자 정보를 불러오는데 실패했습니다: ${response['message']}');
+        throw Exception(
+            '사용자 정보를 불러오는데 실패했습니다: ${response['message'] ?? "알 수 없는 오류"}');
       }
     } catch (e) {
       debugPrint('getAllUsers 오류: $e');

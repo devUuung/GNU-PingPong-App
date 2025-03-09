@@ -43,29 +43,50 @@ class User {
 
   /// JSON에서 User 객체로 변환하는 팩토리 생성자
   factory User.fromJson(Map<String, dynamic> json) {
-    return User(
-      userId: json['user_id'],
-      username: json['username'],
-      phoneNumber: json['phone_number'],
-      profileImageUrl: json['profile_image_url'],
-      statusMessage: json['status_message'] ?? "안녕하세요!",
-      studentId: json['student_id'],
-      score: json['score']?.toDouble() ?? 0.0,
-      totalPrize: json['total_prize'] ?? 0,
-      gameCount: json['game_count'] ?? 0,
-      winCount: json['win_count'] ?? 0,
-      loseCount: json['lose_count'] ?? 0,
-      initialScore: json['initial_score']?.toDouble() ?? 0.0,
-      point: json['point'] ?? 0,
-      isAdmin: json['is_admin'] ?? false,
-      deviceId: json['device_id'],
-      customPoint: json['custom_point'] ?? 0,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
-          : DateTime.now(),
-      rank: json['rank'] ?? 0,
-      department: json['department'] ?? "",
-    );
+    try {
+      return User(
+        userId: json['user_id'] ?? 0,
+        username: json['username'] ?? '',
+        phoneNumber: json['phone_number'] ?? '',
+        profileImageUrl: json['profile_image_url'],
+        statusMessage: json['status_message'] ?? "안녕하세요!",
+        studentId: json['student_id'] ?? 0,
+        score: _parseDouble(json['score']),
+        totalPrize: json['total_prize'] ?? 0,
+        gameCount: json['game_count'] ?? 0,
+        winCount: json['win_count'] ?? 0,
+        loseCount: json['lose_count'] ?? 0,
+        initialScore: _parseDouble(json['initial_score']),
+        point: json['point'] ?? 0,
+        isAdmin: json['is_admin'] ?? false,
+        deviceId: json['device_id'],
+        customPoint: json['custom_point'] ?? 0,
+        createdAt: json['created_at'] != null
+            ? DateTime.parse(json['created_at'])
+            : DateTime.now(),
+        rank: json['rank'] ?? 0,
+        department: json['department'] ?? "",
+      );
+    } catch (e) {
+      print('User.fromJson 오류: $e');
+      print('문제가 있는 JSON: $json');
+      rethrow;
+    }
+  }
+
+  /// double 값을 안전하게 파싱하는 헬퍼 메서드
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      try {
+        return double.parse(value);
+      } catch (_) {
+        return 0.0;
+      }
+    }
+    return 0.0;
   }
 
   /// User 객체를 JSON으로 변환하는 메서드
