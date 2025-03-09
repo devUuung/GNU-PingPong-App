@@ -115,16 +115,14 @@ async def create_new_game(
             },
         )
 
-        # 게임 정보 저장
-        new_game = Game(
+        created_game = create_game(
             winner_id=winner.user_id,
             loser_id=loser.user_id,
-            winner_name=winner.username,
-            loser_name=loser.username,
             plus_score=plus_score,
             minus_score=minus_score,
+            winner_name=winner.username,
+            loser_name=loser.username,
         )
-        created_game = create_game(new_game)
 
         return {
             "success": True,
