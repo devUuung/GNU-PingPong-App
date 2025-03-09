@@ -366,7 +366,7 @@ async def get_all_match_requests(current_user: User = Depends(get_current_active
         result = []
         for user in users:
             try:
-                user = user[0] # tuple of User 로 반환이 되서 임시적으로 해결
+                user = user[0]
                 user_id = user.user_id
 
                 if user_id is None:
@@ -392,9 +392,7 @@ async def get_all_match_requests(current_user: User = Depends(get_current_active
                         }
                     )
             except Exception as e:
-                print(
-                    f"사용자 처리 중 오류: {e}, 사용자 ID: {user}"
-                )
+                print(f"사용자 처리 중 오류: {e}, 사용자 ID: {user}")
                 continue
 
     return {"success": True, "match_requests": result}

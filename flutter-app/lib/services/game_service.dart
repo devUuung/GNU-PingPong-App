@@ -70,7 +70,7 @@ class GameService {
   }) async {
     try {
       final response = await _apiClient.post(
-        ApiConfig.gamesinfo,
+        ApiConfig.createGame,
         body: {
           'winner_id': winnerId,
           'loser_id': loserId,

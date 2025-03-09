@@ -29,6 +29,9 @@ class ApiConfig {
   /// 게임 정보 API URL
   static const String gamesinfo = '$baseUrl/games';
 
+  /// 게임 생성 API URL
+  static const String createGame = '$baseUrl/games/create';
+
   /// 모집 공고 생성 API URL
   static const String recruitPost = '$baseUrl/recruit/post';
 
