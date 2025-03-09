@@ -84,10 +84,7 @@ class _LoginPageState extends State<LoginPage> {
 
   /// HomePage로 이동 (pushReplacement)
   void _goHome() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomePage()),
-    );
+    Navigator.pushReplacementNamed(context, '/home');
   }
 
   @override

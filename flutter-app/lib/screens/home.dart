@@ -10,7 +10,6 @@ import '../widgets/bottom_bar.dart';
 import '../widgets/app_bar.dart';
 import '../widgets/favorite_users_widget.dart';
 import '../widgets/post.dart';
-import 'login.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -40,11 +39,11 @@ class _HomePageState extends State<HomePage> {
           Provider.of<UsersInfoProvider>(context, listen: false);
       await usersProvider.fetchCurrentUser();
 
-      if (usersProvider.currentUser == null) {
-        // 로그인 화면으로 이동
-        _navigateToLogin();
-        return;
-      }
+      // if (usersProvider.currentUser == null) {
+      //   // 로그인 화면으로 이동
+      //   _navigateToLogin();
+      //   return;
+      // }
 
       // 게임 정보 로드
       final gamesProvider =
@@ -66,10 +65,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _navigateToLogin() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginPage()),
-    );
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   @override

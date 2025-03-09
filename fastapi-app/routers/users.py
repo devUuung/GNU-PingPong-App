@@ -326,7 +326,7 @@ async def update_user_profile(
 # 토큰 검증 API
 @router.post("/validate-token")
 async def validate_token(current_user: User = Depends(get_current_active_user)):
-    return {"valid": True, "user_id": current_user.user_id}
+    return {"success": True, "isValid": True, "user_id": current_user.user_id}
 
 
 # 경기 입력 요청 관련 엔드포인트
