@@ -472,9 +472,7 @@ def delete_post_participant(post_id: int, user_id: int):
 def create_match_request(user_id: int):
     with Session(engine) as session:
         # 기존 활성화된 요청이 있는지 확인
-        statement = select(MatchRequest).where(
-            MatchRequest.user_id == user_id, MatchRequest.is_active == True
-        )
+        statement = select(MatchRequest).where(MatchRequest.user_id == user_id)
         existing_request = session.exec(statement).first()
 
         # 이미 요청이 있으면 기존 요청 반환
@@ -499,16 +497,14 @@ def read_match_request(request_id: int):
 # 사용자ID로 경기 입력 요청 조회
 def read_match_request_by_user_id(user_id: int):
     with Session(engine) as session:
-        statement = select(MatchRequest).where(
-            MatchRequest.user_id == user_id, MatchRequest.is_active == True
-        )
+        statement = select(MatchRequest).where(MatchRequest.user_id == user_id)
         return session.exec(statement).first()
 
 
 # 모든 활성화된 경기 입력 요청 조회
 def read_all_active_match_requests():
     with Session(engine) as session:
-        statement = select(MatchRequest).where(MatchRequest.is_active == True)
+        statement = select(MatchRequest)
         return session.exec(statement).all()
 
 
@@ -517,12 +513,10 @@ def deactivate_match_request(request_id: int):
     with Session(engine) as session:
         match_request = read_match_request(request_id)
         if match_request:
-            match_request.is_active = False
-            session.add(match_request)
+            session.delete(match_request)
             session.commit()
-            session.refresh(match_request)
-            return match_request
-        return None
+            return True
+        return False
 
 
 # 사용자ID로 경기 입력 요청 비활성화

@@ -249,7 +249,6 @@ class UserService {
           requestId: response['request_id'],
           userId: response['user_id'],
           createdAt: DateTime.parse(response['created_at']),
-          isActive: response['is_active'],
         );
       } else {
         throw Exception('경기 입력 요청 생성에 실패했습니다: ${response['message']}');
@@ -269,7 +268,6 @@ class UserService {
           requestId: response['request_id'],
           userId: response['user_id'],
           createdAt: DateTime.parse(response['created_at']),
-          isActive: response['is_active'],
         );
       } else {
         return null; // 요청이 없는 경우
