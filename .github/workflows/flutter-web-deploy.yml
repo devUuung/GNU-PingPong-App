@@ -33,6 +33,13 @@ jobs:
           cd flutter-app
           flutter build web --release --base-href /GNU-PingPong-App/
 
+      - name: Check build output
+        run: |
+          echo "Checking build output..."
+          ls -la flutter-app/build/web/
+          echo "Checking for index.html..."
+          cat flutter-app/build/web/index.html | head -n 10
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
