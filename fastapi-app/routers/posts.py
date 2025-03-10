@@ -231,7 +231,9 @@ async def get_recruit_post(
 ):
     try:
         with Session(engine) as session:
-            post = session.exec(select(Post).where(Post.post_id == post_id)).first()
+            post_query = select(Post).where(Post.post_id == post_id)
+            post_result = session.exec(post_query)
+            post = post_result.first()
 
             if not post:
                 return JSONResponse(
@@ -240,11 +242,13 @@ async def get_recruit_post(
                 )
 
             post_data = post.dict()
-            post_data["writer_id"] = post.creator_id
+            post_data["writer_id"] = post.writer_id  # creator_id에서 writer_id로 수정
             post_data["title"] = post.title
             post_data["content"] = post.content
-            post_data["max_user"] = post.max_participants
-            post_data["game_at"] = post.meeting_time
+            post_data["max_user"] = (
+                post.max_user
+            )  # max_participants에서 max_user로 수정
+            post_data["game_at"] = post.game_at  # meeting_time에서 game_at으로 수정
             post_data["game_place"] = post.location if hasattr(post, "location") else ""
 
             return {"success": True, "post": post_data}
@@ -281,7 +285,9 @@ async def update_recruit_post_direct(post_id: int, post_data: RecruitPostData):
     try:
         with Session(engine) as session:
             # 게시물 존재 여부 확인
-            post = session.exec(select(Post).where(Post.post_id == post_id)).first()[0]
+            post_query = select(Post).where(Post.post_id == post_id)
+            post_result = session.exec(post_query)
+            post = post_result.first()
 
             if not post:
                 return JSONResponse(
@@ -291,7 +297,7 @@ async def update_recruit_post_direct(post_id: int, post_data: RecruitPostData):
 
             # user_id와 writer_id 비교하기 전에 디버깅 정보 출력
             print(
-                f"요청 user_id: {post_data.user_id}, 게시물 creator_id: {post.writer_id}"
+                f"요청 user_id: {post_data.user_id}, 게시물 writer_id: {post.writer_id}"
             )
 
             # 작성자 확인 (작성자만 수정 가능)
@@ -307,8 +313,8 @@ async def update_recruit_post_direct(post_id: int, post_data: RecruitPostData):
             # 게시물 정보 업데이트
             post.title = post_data.title
             post.content = post_data.content
-            post.max_user = post_data.max_user
-            post.game_at = post_data.game_at
+            post.max_user = post_data.max_user  # max_participants에서 max_user로 수정
+            post.game_at = post_data.game_at  # meeting_time에서 game_at으로 수정
 
             # location 필드가 있는지 확인하고 업데이트
             if hasattr(post, "location"):
@@ -335,7 +341,9 @@ async def delete_recruit_post(post_id: int, user_id: int):
     try:
         with Session(engine) as session:
             # 게시물 존재 여부 확인
-            post = session.exec(select(Post).where(Post.post_id == post_id)).first()[0]
+            post_query = select(Post).where(Post.post_id == post_id)
+            post_result = session.exec(post_query)
+            post = post_result.first()
 
             if not post:
                 return JSONResponse(
@@ -343,7 +351,7 @@ async def delete_recruit_post(post_id: int, user_id: int):
                     content={"success": False, "message": "게시물을 찾을 수 없습니다."},
                 )
 
-            # 디버깅 정보 출력
+            # 디버깅 정보 출력 - creator_id에서 writer_id로 수정
             print(f"삭제 요청 user_id: {user_id}, 게시물 writer_id: {post.writer_id}")
 
             # 작성자 확인 (작성자만 삭제 가능)
@@ -358,9 +366,10 @@ async def delete_recruit_post(post_id: int, user_id: int):
 
             try:
                 # 1. 먼저 해당 게시물에 연결된 모든 참가자 정보를 삭제 (외래키 제약조건 해결)
-                participants = session.exec(
-                    select(PostParticipant).where(PostParticipant.post_id == post_id)
-                ).all()
+                participants_query = select(PostParticipant).where(
+                    PostParticipant.post_id == post_id
+                )
+                participants = session.exec(participants_query).all()
 
                 print(f"삭제할 참가자 수: {len(participants)}")
 
