@@ -324,19 +324,12 @@ async def get_recruit_post_v1(post_id: int):
     return await get_recruit_post(post_id, None)
 
 
-# 클라이언트 요청 경로에 맞추는 PUT 엔드포인트
-@router.put("/v1/recruit/post/{post_id}", tags=["recruit"])
-async def update_recruit_post_v1(post_id: int, post_data: RecruitPostData):
-    # 기존 함수 재사용
-    return await update_recruit_post(post_id, post_data, None)
-
-
 # 새 recruit_router에 추가하는 엔드포인트들
 
 
 # 모집 공고 수정 API
 @recruit_router.put("/post/{post_id}")
-async def update_recruit_post_v1(post_id: int, post_data: RecruitPostData):
+async def update_recruit_post_direct(post_id: int, post_data: RecruitPostData):
     try:
         with Session(engine) as session:
             # 게시물 존재 여부 확인
@@ -347,6 +340,11 @@ async def update_recruit_post_v1(post_id: int, post_data: RecruitPostData):
                     status_code=status.HTTP_404_NOT_FOUND,
                     content={"success": False, "message": "게시물을 찾을 수 없습니다."},
                 )
+
+            # user_id와 creator_id 비교하기 전에 디버깅 정보 출력
+            print(
+                f"요청 user_id: {post_data.user_id}, 게시물 creator_id: {post.creator_id}"
+            )
 
             # 작성자 확인 (작성자만 수정 가능)
             if post.creator_id != post_data.user_id:
@@ -376,6 +374,7 @@ async def update_recruit_post_v1(post_id: int, post_data: RecruitPostData):
             return {"success": True, "message": "게시물이 성공적으로 수정되었습니다."}
 
     except Exception as e:
+        print(f"게시물 수정 중 오류 발생: {str(e)}")  # 디버깅용 로그
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"success": False, "message": f"서버 오류: {str(e)}"},

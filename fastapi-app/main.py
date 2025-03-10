@@ -71,12 +71,12 @@ async def add_charset_utf8_to_json_response(request, call_next):
 # 정적 파일 마운트 설정 - fastapi-app 내부의 static 폴더 사용
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# 라우터 등록
+# 라우터 등록 - recruit_router를 먼저 등록하여 우선순위 부여
+app.include_router(posts.recruit_router)  # 새로운 recruit_router를 먼저 등록
 app.include_router(users.router)
 app.include_router(games.router)
 app.include_router(posts.router)
 app.include_router(admin.router, prefix=settings.API_V1_STR)
-app.include_router(posts.recruit_router)  # 새로운 recruit_router 등록
 
 
 # JWT 토큰 생성 함수
@@ -515,54 +515,6 @@ def get_recruit_post_v1(post_id: int):
                 "success": False,
                 "message": f"서버 오류: {str(e)}",
             },
-        )
-
-
-# 모집 공고 수정 API
-@app.put("/api/v1/recruit/post/{post_id}")
-def update_recruit_post_v1(post_id: int, data: RecruitPostData):
-    try:
-        with Session(engine) as session:
-            # 게시물 존재 여부 확인
-            post = session.exec(select(Post).where(Post.post_id == post_id)).first()
-
-            if not post:
-                return JSONResponse(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    content={"success": False, "message": "게시물을 찾을 수 없습니다."},
-                )
-
-            # 작성자 확인 (작성자만 수정 가능)
-            if post.creator_id != data.user_id:
-                return JSONResponse(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    content={
-                        "success": False,
-                        "message": "게시물 수정 권한이 없습니다.",
-                    },
-                )
-
-            # 게시물 정보 업데이트
-            post.title = data.title
-            post.content = data.content
-            post.max_participants = data.max_user
-            post.meeting_time = data.game_at
-
-            # location 필드가 있는지 확인하고 업데이트
-            if hasattr(post, "location"):
-                post.location = data.game_place
-
-            # 변경사항 커밋
-            session.add(post)
-            session.commit()
-            session.refresh(post)
-
-            return {"success": True, "message": "게시물이 성공적으로 수정되었습니다."}
-
-    except Exception as e:
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"success": False, "message": f"서버 오류: {str(e)}"},
         )
 
 
