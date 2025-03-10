@@ -3,13 +3,11 @@ class MatchRequest {
   final int requestId;
   final int userId;
   final DateTime createdAt;
-  final bool isActive;
 
   MatchRequest({
     required this.requestId,
     required this.userId,
     required this.createdAt,
-    required this.isActive,
   });
 
   /// JSON에서 MatchRequest 객체로 변환하는 팩토리 생성자
@@ -20,7 +18,6 @@ class MatchRequest {
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
-      isActive: json['is_active'] ?? true,
     );
   }
 
@@ -30,7 +27,6 @@ class MatchRequest {
       'request_id': requestId,
       'user_id': userId,
       'created_at': createdAt.toIso8601String(),
-      'is_active': isActive,
     };
   }
 }
@@ -54,7 +50,6 @@ class MatchRequestWithUser {
         createdAt: json['created_at'] != null
             ? DateTime.parse(json['created_at'])
             : DateTime.now(),
-        isActive: json['is_active'] ?? true,
       ),
       user: json['user'],
     );
