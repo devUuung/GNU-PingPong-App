@@ -401,10 +401,8 @@ async def cancel_my_match_request(
     current_user: User = Depends(get_current_active_user),
 ):
     """
-    현재 사용자의 경기 입력 요청을 비활성화합니다.
+    현재 사용자의 경기 입력 요청을 삭제합니다.
     """
     match_request = delete_match_request_by_user_id(current_user.user_id)
-    if not match_request:
-        return {"success": False, "message": "활성화된 경기 입력 요청이 없습니다."}
 
     return {"success": True, "message": "경기 입력 요청이 취소되었습니다."}

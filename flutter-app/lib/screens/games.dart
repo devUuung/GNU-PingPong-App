@@ -1,11 +1,11 @@
 // lib/screens/games.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_app/services/index.dart';
 import 'package:provider/provider.dart';
 import '../providers/games_info_provider.dart';
 import '../providers/star_users_info_provider.dart';
 import '../widgets/bottom_bar.dart';
 import 'find_user.dart';
-import '../services/token_service.dart';
 
 class GamesPage extends StatefulWidget {
   const GamesPage({Key? key}) : super(key: key);
@@ -26,7 +26,7 @@ class _GamesPageState extends State<GamesPage> {
     // Provider를 통해 경기 기록 데이터를 가져옵니다.
     Future.microtask(() async {
       // 현재 사용자 ID 가져오기
-      final tokenData = await TokenService().validateToken();
+      final tokenData = await ApiClient().validateToken();
       if (tokenData['isValid'] && tokenData['user_id'] != null) {
         setState(() {
           currentUserId = tokenData['user_id'];

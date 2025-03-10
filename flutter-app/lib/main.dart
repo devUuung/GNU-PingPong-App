@@ -45,9 +45,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'GNU-PingPong-App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: ThemeData(primarySwatch: Colors.blue),
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginPage(),

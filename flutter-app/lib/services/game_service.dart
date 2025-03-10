@@ -12,10 +12,9 @@ class GameService {
   Future<List<Game>> getAllGames() async {
     try {
       var response = await _apiClient.get('${ApiConfig.gamesinfo}/all');
-
       if (response['success'] == true && response['data'] != null) {
         // data가 리스트가 맞는지 확인
-        response['data'] = jsonDecode(response['data']);
+        // response['data'] = jsonDecode(response['data']);
         if (response['data'] is List<dynamic>) {
           final List<dynamic> gamesData = response['data'];
           return gamesData.map((game) => Game.fromJson(game)).toList();

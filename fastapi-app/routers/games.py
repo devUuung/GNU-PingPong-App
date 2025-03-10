@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from typing import List, Optional
 from pydantic import BaseModel
 from sqlmodel import Session
+from fastapi.encoders import jsonable_encoder
 
 from core.config import settings
 from core.auth import get_current_active_user
@@ -30,7 +31,13 @@ class GameCreate(BaseModel):
 @router.get("/all", response_model=List[dict])
 async def get_all_games(current_user: User = Depends(get_current_active_user)):
     games = read_games_by_all()
-    return [game.dict() for game in games]
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "success": True,
+            "data": [jsonable_encoder(game) for game in games],
+        },
+    )
 
 
 def calculate_k_factor(rating: float, streak: int) -> float:

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../api_config.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html;
 
 /// API 요청을 처리하는 클라이언트 클래스
 class ApiClient {
@@ -208,17 +210,29 @@ class ApiClient {
 
   /// 토큰을 가져오는 메서드
   Future<String?> getToken() async {
-    return await _secureStorage.read(key: 'access_token');
+    if (kIsWeb) {
+      return html.window.sessionStorage['access_token'];
+    } else {
+      return await _secureStorage.read(key: 'access_token');
+    }
   }
 
   /// 토큰을 저장하는 메서드
   Future<void> saveToken(String token) async {
-    await _secureStorage.write(key: 'access_token', value: token);
+    if (kIsWeb) {
+      html.window.sessionStorage['access_token'] = token;
+    } else {
+      await _secureStorage.write(key: 'access_token', value: token);
+    }
   }
 
   /// 토큰을 삭제하는 메서드
   Future<void> deleteToken() async {
-    await _secureStorage.delete(key: 'access_token');
+    if (kIsWeb) {
+      html.window.sessionStorage.remove('access_token');
+    } else {
+      await _secureStorage.delete(key: 'access_token');
+    }
   }
 
   /// 토큰 유효성을 검사하는 메서드

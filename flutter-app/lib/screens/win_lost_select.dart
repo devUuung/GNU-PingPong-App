@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/game_service.dart';
 import '../providers/users_info_provider.dart';
-import '../services/token_service.dart';
 import 'user_list.dart';
 import 'games.dart';
 import '../services/user_service.dart';
+import 'package:flutter_app/services/api_client.dart';
 
 class WinLoseSelect extends StatefulWidget {
   final String myName;
@@ -139,20 +139,13 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
       // 경기 생성 성공 시 매칭 요청 취소 시도
       try {
         final userService = UserService();
-        // 토큰이 유효한지 확인
-        final token = await TokenService().getToken();
-        if (token != null && token.isNotEmpty) {
-          await userService.cancelMatchRequest();
-          print('매칭 요청 취소 성공');
-        } else {
-          print('토큰이 없어 매칭 요청 취소를 건너뜁니다');
-        }
+        await userService.cancelMatchRequest();
+        debugPrint('매칭 요청 취소 성공');
       } catch (e) {
-        print('매칭 요청 취소 중 오류: $e');
+        debugPrint('매칭 요청 취소 중 오류: $e');
         // 매칭 요청 취소 실패해도 경기 생성은 성공했으므로 계속 진행
       }
       // 경기 생성 성공 시 경기기록 화면으로 이동
-      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(

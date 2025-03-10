@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/api_config.dart';
 import 'package:flutter_app/screens/change_password.dart';
+import 'package:flutter_app/services/api_client.dart';
 import 'package:flutter_app/widgets/app_bar.dart';
 import 'package:flutter_app/widgets/bottom_bar.dart';
 import 'package:flutter_app/screens/profile_edit.dart';
@@ -10,7 +11,6 @@ import 'package:flutter_app/dialog.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_app/providers/users_info_provider.dart';
-import 'package:flutter_app/services/token_service.dart';
 import 'package:flutter_app/screens/login.dart';
 
 class MyInfoPage extends StatefulWidget {
@@ -65,14 +65,12 @@ class _MyInfoPageState extends State<MyInfoPage> {
 
   // JWT 및 사용자 정보 삭제 기능
   Future<void> _deleteJWT() async {
-    final storage = FlutterSecureStorage();
-    // JWT 토큰 삭제
-    await storage.delete(key: 'access_token');
+    await ApiClient().deleteToken();
 
     // 삭제 완료 후 다이얼로그로 알림
     showErrorDialog(context, 'JWT 토큰과 사용자 정보가 삭제되었습니다. 자동 로그인이 비활성화되었습니다.');
 
-    // 선택 사항: 로그아웃 처리 후 로그인 화면으로 이동
+    // 로그아웃 처리 후 로그인 화면으로 이동
     Navigator.pushReplacement(
         context, MaterialPageRoute(builder: (context) => LoginPage()));
   }

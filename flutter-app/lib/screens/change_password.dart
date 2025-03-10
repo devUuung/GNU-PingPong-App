@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/services/index.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_app/api_config.dart';
 import 'package:flutter_app/dialog.dart';
-import 'package:flutter_app/services/token_service.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({Key? key}) : super(key: key);
@@ -48,7 +47,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
       try {
         // 토큰 유효성 검사
-        final tokenData = await TokenService().validateToken();
+        final tokenData = await ApiClient().validateToken();
         if (!tokenData['isValid']) {
           if (!mounted) return;
           _showMessage('인증에 실패했습니다. 다시 로그인해주세요.');
@@ -61,7 +60,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         final url = '${ApiConfig.userinfo}/$userId/change-password';
 
         // 토큰 가져오기
-        final token = await TokenService().getToken();
+        final token = await ApiClient().getToken();
 
         final client = http.Client();
         try {

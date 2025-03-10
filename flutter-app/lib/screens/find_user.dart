@@ -123,40 +123,52 @@ class _FindUserPageState extends State<FindUserPage> {
 
   // 매칭 요청 취소
   Future<void> _cancelMatchRequest() async {
+    if (!mounted) return; // 혹은 위젯이 dispose된 상황을 먼저 확인
     setState(() {
       _isLoading = true;
     });
 
     try {
       final success = await _userService.cancelMatchRequest();
+      print(success);
       if (success) {
-        setState(() {
-          _isRequestingMatch = false;
-          _matchUsers = [];
-        });
-
+        print("aa");
+        if (mounted) {
+          setState(() {
+            _isRequestingMatch = false;
+            _matchUsers = [];
+          });
+        }
+        print("bb");
         // 타이머 취소
         _refreshTimer?.cancel();
+        print("cc");
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('경기 입력 상태가 취소되었습니다.'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('경기 입력 상태가 취소되었습니다.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
       }
     } catch (e) {
       print('매칭 요청 취소 중 오류: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('매칭 요청 취소 중 오류가 발생했습니다.\n서버 관리자에게 문의하세요.'),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('매칭 요청 취소 중 오류가 발생했습니다.\n서버 관리자에게 문의하세요.'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

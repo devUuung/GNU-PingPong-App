@@ -5,12 +5,10 @@ import 'package:http/http.dart' as http;
 import '../api_config.dart';
 import '../models/index.dart';
 import 'api_client.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// 사용자 관련 API 요청을 처리하는 서비스 클래스
 class UserService {
   final ApiClient _apiClient = ApiClient();
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   /// 로그인 요청을 처리하는 메서드
   Future<Map<String, dynamic>> login(String studentId, String password) async {
@@ -78,6 +76,7 @@ class UserService {
     try {
       final tokenData = await _apiClient.validateToken();
       if (tokenData['isValid'] != true || tokenData['user_id'] == null) {
+        debugPrint('${tokenData}');
         return null;
       }
 
@@ -262,7 +261,7 @@ class UserService {
   /// 내 경기 입력 요청 상태를 확인하는 메서드
   Future<MatchRequest?> getMyMatchRequest() async {
     try {
-      final response = await _apiClient.get(ApiConfig.getMyMatchRequest);
+      final response = await _apiClient.delete(ApiConfig.getMyMatchRequest);
       if (response['success'] == true) {
         return MatchRequest(
           requestId: response['request_id'],
@@ -304,6 +303,8 @@ class UserService {
   Future<bool> cancelMatchRequest() async {
     try {
       final response = await _apiClient.delete(ApiConfig.cancelMatchRequest);
+      debugPrint('$response');
+      debugPrint('${response['success']}');
       return response['success'] == true;
     } catch (e) {
       debugPrint('cancelMatchRequest 오류: $e');

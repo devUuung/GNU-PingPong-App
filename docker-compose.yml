@@ -7,13 +7,9 @@ services:
       - "1200:8000"
     volumes:
       - ./fastapi-app:/app
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--ssl-keyfile", "/app/certs/key.pem", "--ssl-certfile", "/app/certs/cert.pem"]
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
     env_file:
       - ./env/api.env
-    environment:
-      - SSL_ENABLED=True
-      - SSL_CERTFILE=/app/certs/cert.pem
-      - SSL_KEYFILE=/app/certs/key.pem
     depends_on:
       - test-db
     links:

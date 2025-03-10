@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/services/api_client.dart';
 import 'package:flutter_app/widgets/app_bar.dart';
 import 'package:flutter_app/dialog.dart';
-import 'package:flutter_app/services/token_service.dart';
 import 'package:flutter_app/api_config.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -60,7 +60,7 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
 
     try {
       // 토큰 유효성 검사
-      final tokenResult = await TokenService().validateToken();
+      final tokenResult = await ApiClient().validateToken();
       if (!tokenResult['isValid']) {
         if (!mounted) return;
         showErrorDialog(context, '로그인이 필요합니다.');
@@ -71,7 +71,7 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
       _currentUserId = tokenResult['user_id'];
 
       // 모집공고 상세 정보 가져오기
-      final token = await _secureStorage.read(key: 'access_token');
+      final token = await ApiClient().getToken();
       final response = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/recruit/post/${widget.postId}'),
         headers: {
@@ -164,7 +164,7 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
       };
 
       // API 요청 보내기
-      final token = await _secureStorage.read(key: 'access_token');
+      final token = await ApiClient().getToken();
       final client = http.Client();
       try {
         final response = await client

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/screens/post_edit.dart';
-import 'package:flutter_app/services/token_service.dart';
+import 'package:flutter_app/services/api_client.dart';
 import 'package:flutter_app/api_config.dart';
 import 'package:flutter_app/dialog.dart' as app_dialog;
 import 'package:flutter_app/utils/index.dart';
@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_app/services/post_service.dart';
 
 /// 게시글 위젯
 class Post extends StatefulWidget {
@@ -39,13 +40,12 @@ class _PostState extends State<Post> {
 
     try {
       // 현재 사용자 ID 가져오기
-      final tokenResult = await TokenService().validateToken();
-      if (tokenResult['isValid']) {
-        _currentUserId = tokenResult['user_id'];
-      }
+      final tokenResult = await ApiClient().validateToken();
+      debugPrint('tokenResult: $tokenResult');
+      _currentUserId = tokenResult['user_id'];
 
       // 모집공고 목록 가져오기
-      final token = await _secureStorage.read(key: 'access_token');
+      final token = await ApiClient().getToken();
       final client = http.Client();
       try {
         final response = await client.get(
@@ -104,40 +104,6 @@ class _PostState extends State<Post> {
       } else {
         app_dialog.showErrorDialog(
             context, responseData['message'] ?? '모집공고 삭제에 실패했습니다.');
-      }
-    } catch (e) {
-      app_dialog.showErrorDialog(context, '오류가 발생했습니다: $e');
-    }
-  }
-
-  // 모집공고 참가
-  Future<void> _joinPost(int postId) async {
-    try {
-      final token = await _secureStorage.read(key: 'access_token');
-      final client = http.Client();
-      try {
-        final response = await client.post(
-          Uri.parse(
-              '${ApiConfig.baseUrl}/recruit/post/$postId/join?user_id=$_currentUserId'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        ).timeout(const Duration(seconds: 15));
-
-        final responseData = jsonDecode(response.body);
-
-        if (response.statusCode == 200 && responseData['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('모집공고에 참가했습니다.')),
-          );
-          _fetchPosts(); // 목록 새로고침
-        } else {
-          app_dialog.showErrorDialog(
-              context, responseData['message'] ?? '모집공고 참가에 실패했습니다.');
-        }
-      } finally {
-        client.close();
       }
     } catch (e) {
       app_dialog.showErrorDialog(context, '오류가 발생했습니다: $e');
@@ -348,7 +314,8 @@ class _PostState extends State<Post> {
                           backgroundColor: const Color(0xFF65558F),
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: () => _joinPost(post['post_id']),
+                        onPressed: () =>
+                            PostService().participatePost(post['post_id']),
                       ),
                     ],
                   ],

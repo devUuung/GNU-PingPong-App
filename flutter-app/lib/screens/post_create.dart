@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/services/index.dart';
 import 'package:flutter_app/widgets/app_bar.dart';
 import 'package:flutter_app/widgets/bottom_bar.dart';
 import 'package:intl/intl.dart'; // 날짜 포맷을 위해 추가
@@ -7,7 +8,6 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_app/services/token_service.dart';
 import 'package:flutter_app/api_config.dart';
 import 'package:flutter_app/dialog.dart';
 
@@ -86,7 +86,7 @@ class _RecruitPostPageState extends State<RecruitPostPage> {
 
     try {
       // 토큰 검증을 통해 사용자 ID 가져오기
-      final tokenResult = await TokenService().validateToken();
+      final tokenResult = await ApiClient().validateToken();
 
       if (!tokenResult['isValid']) {
         showErrorDialog(context, '로그인이 필요합니다.');

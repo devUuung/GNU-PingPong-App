@@ -1,15 +1,15 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/api_config.dart';
+import 'package:flutter_app/services/api_client.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_app/widgets/app_bar.dart';
-import 'package:flutter_app/widgets/bottom_bar.dart';
-import 'dart:io';
 import 'package:flutter_app/dialog.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_app/providers/users_info_provider.dart';
+import 'dart:io';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({Key? key}) : super(key: key);
@@ -31,8 +31,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _nicknameController;
   late TextEditingController _statusMessageController;
 
-  // 갤러리에서 선택된 프로필 이미지 파일
-  File? _profileImageFile;
+  // 갤러리에서 선택된 프로필 이미지 파일 (모바일/데스크톱에서는 path를 사용하고, 웹에서는 XFile와 바이트 데이터를 사용)
+  XFile? _profileImageFile;
+  Uint8List? _profileImageBytes; // 웹 전용 이미지 바이트 데이터
 
   // 로딩 상태
   bool _isLoading = true;
@@ -101,9 +102,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
       );
 
       if (pickedFile != null) {
-        setState(() {
-          _profileImageFile = File(pickedFile.path);
-        });
+        if (kIsWeb) {
+          // 웹: 바이트 데이터를 읽어서 저장
+          final bytes = await pickedFile.readAsBytes();
+          setState(() {
+            _profileImageFile = pickedFile;
+            _profileImageBytes = bytes;
+          });
+        } else {
+          // 모바일/데스크톱: XFile의 path 사용
+          setState(() {
+            _profileImageFile = pickedFile;
+          });
+        }
       }
     } catch (e) {
       debugPrint('이미지 선택 오류: $e');
@@ -145,35 +156,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
 
     try {
-      // Secure Storage에서 토큰 읽기
-      final storage = FlutterSecureStorage();
-      final token = await storage.read(key: 'access_token');
-      if (token == null) {
-        showErrorDialog(context, '로그인이 필요합니다.');
-        return;
-      }
-
-      // JWT 토큰을 API를 통해 유효성 검사 및 user_id 반환 받기
-      final validateUrl = ApiConfig.validateToken;
-      final validateResponse = await http.post(
-        Uri.parse(validateUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (validateResponse.statusCode != 200) {
-        showErrorDialog(context, '토큰 검증에 실패했습니다.');
-        return;
-      }
-
-      final validateData = jsonDecode(validateResponse.body);
-      if (validateData['valid'] != true) {
-        showErrorDialog(context, '유효하지 않은 토큰입니다.');
-        return;
-      }
-      final userId = validateData['user_id'];
+      final token = await ApiClient().getToken();
+      var responsevalidate = await ApiClient().validateToken();
+      final userId = responsevalidate["user_id"];
 
       // PUT 요청을 보낼 URL 구성 (userinfo/{user_id})
       final url = '${ApiConfig.userinfo}/$userId';
@@ -190,11 +175,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
       updatedFields.forEach((key, value) {
         request.fields[key] = value;
       });
+
       if (_profileImageFile != null) {
-        // 파일 파라미터 이름을 "file"로 변경 (FastAPI에서 받는 이름)
-        request.files.add(
-            await http.MultipartFile.fromPath("file", _profileImageFile!.path));
+        if (kIsWeb) {
+          // 웹: 파일의 바이트 데이터를 읽어서 업로드
+          final bytes = await _profileImageFile!.readAsBytes();
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              "file",
+              bytes,
+              filename: _profileImageFile!.name,
+            ),
+          );
+        } else {
+          // 모바일/데스크톱: 파일 경로를 이용해 업로드
+          request.files.add(
+            await http.MultipartFile.fromPath("file", _profileImageFile!.path),
+          );
+        }
       }
+
       var response = await request.send();
 
       if (response.statusCode == 200) {
@@ -262,10 +262,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             ),
                             child: ClipOval(
                               child: _profileImageFile != null
-                                  ? Image.file(
-                                      _profileImageFile!,
-                                      fit: BoxFit.cover,
-                                    )
+                                  ? kIsWeb
+                                      ? Image.memory(
+                                          _profileImageBytes!,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Image.file(
+                                          // XFile의 경로를 사용하여 File 객체 생성
+                                          File(_profileImageFile!.path),
+                                          fit: BoxFit.cover,
+                                        )
                                   : Image.network(
                                       _profileImageUrl,
                                       fit: BoxFit.cover,
