@@ -344,7 +344,6 @@ async def create_new_match_request(
         "request_id": match_request.request_id,
         "user_id": match_request.user_id,
         "created_at": match_request.created_at,
-        "is_active": match_request.is_active,
     }
 
 
@@ -388,7 +387,6 @@ async def get_all_match_requests(current_user: User = Depends(get_current_active
                             "user": user_data,
                             "request_id": match_request.request_id,
                             "created_at": match_request.created_at,
-                            "is_active": match_request.is_active,
                         }
                     )
             except Exception as e:
