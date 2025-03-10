@@ -157,7 +157,8 @@ async def participate_post(
 @router.get("/all", response_model=List[dict])
 async def get_all_posts(current_user: User = Depends(get_current_active_user)):
     with Session(engine) as session:
-        posts = session.query(Post).order_by(Post.created_at.desc()).all()
+        # scalars()를 사용해 매핑된 객체 리스트를 얻음
+        posts = session.exec(select(Post).order_by(Post.created_at.desc())).scalars().all()
 
         result = []
         for post in posts:
@@ -195,7 +196,7 @@ async def get_recruit_posts(current_user: User = Depends(get_current_active_user
     try:
         # 모든 모집 공고 조회
         with Session(engine) as session:
-            posts = session.exec(select(Post)).all()
+            posts = session.exec(select(Post)).scalars().all()
 
         if not posts:
             return JSONResponse(
@@ -232,8 +233,7 @@ async def get_recruit_post(
     try:
         with Session(engine) as session:
             post_query = select(Post).where(Post.post_id == post_id)
-            post_result = session.exec(post_query)
-            post = post_result.first()
+            post = session.exec(post_query).scalars().first()
 
             if not post:
                 return JSONResponse(
@@ -245,9 +245,7 @@ async def get_recruit_post(
             post_data["writer_id"] = post.writer_id  # creator_id에서 writer_id로 수정
             post_data["title"] = post.title
             post_data["content"] = post.content
-            post_data["max_user"] = (
-                post.max_user
-            )  # max_participants에서 max_user로 수정
+            post_data["max_user"] = post.max_user  # max_participants에서 max_user로 수정
             post_data["game_at"] = post.game_at  # meeting_time에서 game_at으로 수정
             post_data["game_place"] = post.location if hasattr(post, "location") else ""
 
@@ -276,9 +274,6 @@ async def get_recruit_post_v1(post_id: int):
     return await get_recruit_post(post_id, None)
 
 
-# 새 recruit_router에 추가하는 엔드포인트들
-
-
 # 모집 공고 수정 API
 @recruit_router.put("/post/{post_id}")
 async def update_recruit_post_direct(post_id: int, post_data: RecruitPostData):
@@ -286,8 +281,7 @@ async def update_recruit_post_direct(post_id: int, post_data: RecruitPostData):
         with Session(engine) as session:
             # 게시물 존재 여부 확인
             post_query = select(Post).where(Post.post_id == post_id)
-            post_result = session.exec(post_query)
-            post = post_result.first()
+            post = session.exec(post_query).scalars().first()
 
             if not post:
                 return JSONResponse(
@@ -328,7 +322,7 @@ async def update_recruit_post_direct(post_id: int, post_data: RecruitPostData):
             return {"success": True, "message": "게시물이 성공적으로 수정되었습니다."}
 
     except Exception as e:
-        print(f"게시물 수정 중 오류 발생: {str(e)}")  # 디버깅용 로그
+        print(f"게시물 수정 중 오류 발생: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"success": False, "message": f"서버 오류: {str(e)}"},
@@ -340,10 +334,9 @@ async def update_recruit_post_direct(post_id: int, post_data: RecruitPostData):
 async def delete_recruit_post(post_id: int, user_id: int):
     try:
         with Session(engine) as session:
-            # 게시물 존재 여부 확인
+            # 게시물 존재 여부 확인: scalars()를 사용해 매핑된 Post 객체를 바로 얻음
             post_query = select(Post).where(Post.post_id == post_id)
-            post_result = session.exec(post_query)
-            post = post_result.first()
+            post = session.exec(post_query).scalars().first()
 
             if not post:
                 return JSONResponse(
@@ -351,7 +344,6 @@ async def delete_recruit_post(post_id: int, user_id: int):
                     content={"success": False, "message": "게시물을 찾을 수 없습니다."},
                 )
 
-            # 디버깅 정보 출력 - creator_id에서 writer_id로 수정
             print(f"삭제 요청 user_id: {user_id}, 게시물 writer_id: {post.writer_id}")
 
             # 작성자 확인 (작성자만 삭제 가능)
@@ -369,7 +361,7 @@ async def delete_recruit_post(post_id: int, user_id: int):
                 participants_query = select(PostParticipant).where(
                     PostParticipant.post_id == post_id
                 )
-                participants = session.exec(participants_query).all()
+                participants = session.exec(participants_query).scalars().all()
 
                 print(f"삭제할 참가자 수: {len(participants)}")
 
@@ -379,7 +371,7 @@ async def delete_recruit_post(post_id: int, user_id: int):
                 # 변경사항 커밋
                 session.commit()
 
-                # 2. 그 후에 게시물 삭제
+                # 2. 게시물 삭제
                 session.delete(post)
                 session.commit()
 
@@ -389,13 +381,12 @@ async def delete_recruit_post(post_id: int, user_id: int):
                 }
 
             except Exception as db_error:
-                # 데이터베이스 작업 중 오류 발생 시 롤백
                 session.rollback()
                 print(f"데이터베이스 작업 중 오류: {str(db_error)}")
                 raise db_error
 
     except Exception as e:
-        print(f"게시물 삭제 중 오류 발생: {str(e)}")  # 디버깅용 로그
+        print(f"게시물 삭제 중 오류 발생: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"success": False, "message": f"서버 오류: {str(e)}"},
