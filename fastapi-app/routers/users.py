@@ -23,7 +23,7 @@ from models import (
     create_match_request,
     read_match_request_by_user_id,
     read_all_active_match_requests,
-    deactivate_match_request_by_user_id,
+    delete_match_request_by_user_id,
     MatchRequest,
 )
 
@@ -405,7 +405,7 @@ async def cancel_my_match_request(
     """
     현재 사용자의 경기 입력 요청을 비활성화합니다.
     """
-    match_request = deactivate_match_request_by_user_id(current_user.user_id)
+    match_request = delete_match_request_by_user_id(current_user.user_id)
     if not match_request:
         return {"success": False, "message": "활성화된 경기 입력 요청이 없습니다."}
 

@@ -80,7 +80,6 @@ class MatchRequest(SQLModel, table=True, tablename="match_request"):
     request_id: int = Field(primary_key=True, default=None)
     user_id: int = Field(foreign_key="user.user_id")
     created_at: datetime = Field(default=datetime.now())
-    is_active: bool = Field(default=True)
 
 
 # 데이터베이스 엔진 생성 (여기서는 SQLite 메모리 데이터베이스 사용)
@@ -527,16 +526,12 @@ def deactivate_match_request(request_id: int):
 
 
 # 사용자ID로 경기 입력 요청 비활성화
-def deactivate_match_request_by_user_id(user_id: int):
+def delete_match_request_by_user_id(user_id: int):
     with Session(engine) as session:
-        statement = select(MatchRequest).where(
-            MatchRequest.user_id == user_id, MatchRequest.is_active == True
-        )
+        statement = select(MatchRequest).where(MatchRequest.user_id == user_id)
         match_request = session.exec(statement).first()
         if match_request:
-            match_request.is_active = False
-            session.add(match_request)
+            session.delete(match_request)
             session.commit()
-            session.refresh(match_request)
-            return match_request
-        return None
+            return True
+        return False
