@@ -282,7 +282,6 @@ async def update_recruit_post_direct(post_id: int, post_data: RecruitPostData):
         with Session(engine) as session:
             # 게시물 존재 여부 확인
             post = session.exec(select(Post).where(Post.post_id == post_id)).first()[0]
-            
 
             if not post:
                 return JSONResponse(
@@ -324,6 +323,47 @@ async def update_recruit_post_direct(post_id: int, post_data: RecruitPostData):
 
     except Exception as e:
         print(f"게시물 수정 중 오류 발생: {str(e)}")  # 디버깅용 로그
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "message": f"서버 오류: {str(e)}"},
+        )
+
+
+# 모집 공고 삭제 API
+@recruit_router.delete("/post/{post_id}")
+async def delete_recruit_post(post_id: int, user_id: int):
+    try:
+        with Session(engine) as session:
+            # 게시물 존재 여부 확인
+            post = session.exec(select(Post).where(Post.post_id == post_id)).first()
+
+            if not post:
+                return JSONResponse(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    content={"success": False, "message": "게시물을 찾을 수 없습니다."},
+                )
+
+            # 디버깅 정보 출력
+            print(f"삭제 요청 user_id: {user_id}, 게시물 creator_id: {post.creator_id}")
+
+            # 작성자 확인 (작성자만 삭제 가능)
+            if post.creator_id != user_id:
+                return JSONResponse(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    content={
+                        "success": False,
+                        "message": "게시물 삭제 권한이 없습니다.",
+                    },
+                )
+
+            # 게시물 삭제
+            session.delete(post)
+            session.commit()
+
+            return {"success": True, "message": "게시물이 성공적으로 삭제되었습니다."}
+
+    except Exception as e:
+        print(f"게시물 삭제 중 오류 발생: {str(e)}")  # 디버깅용 로그
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"success": False, "message": f"서버 오류: {str(e)}"},
