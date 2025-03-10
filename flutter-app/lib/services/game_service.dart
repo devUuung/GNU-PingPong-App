@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api_config.dart';
 import '../models/index.dart';
 import 'api_client.dart';
+import 'dart:convert';
 
 /// 게임 관련 API 요청을 처리하는 서비스 클래스
 class GameService {
@@ -10,11 +11,12 @@ class GameService {
   /// 모든 게임 정보를 가져오는 메서드
   Future<List<Game>> getAllGames() async {
     try {
-      final response = await _apiClient.get('${ApiConfig.gamesinfo}/all');
+      var response = await _apiClient.get('${ApiConfig.gamesinfo}/all');
 
       if (response['success'] == true && response['data'] != null) {
         // data가 리스트가 맞는지 확인
-        if (response['data'] is List) {
+        response['data'] = jsonDecode(response['data']);
+        if (response['data'] is List<dynamic>) {
           final List<dynamic> gamesData = response['data'];
           return gamesData.map((game) => Game.fromJson(game)).toList();
         } else {

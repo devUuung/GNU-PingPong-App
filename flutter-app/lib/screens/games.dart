@@ -51,15 +51,15 @@ class _GamesPageState extends State<GamesPage> {
     } else if (filter == '내 경기') {
       // 현재 사용자가 참여한 경기만 필터링
       return games.where((game) {
-        final winnerId = game['winner_id'];
-        final loserId = game['loser_id'];
+        final winnerId = game.winnerId;
+        final loserId = game.loserId;
         return winnerId == currentUserId || loserId == currentUserId;
       }).toList();
     } else if (filter == '즐겨찾기') {
       // 즐겨찾기한 사용자가 참여한 경기만 필터링
       return games.where((game) {
-        final winnerId = game['winner_id'];
-        final loserId = game['loser_id'];
+        final winnerId = game.winnerId;
+        final loserId = game.loserId;
         return starUsers.contains(winnerId) || starUsers.contains(loserId);
       }).toList();
     }
@@ -93,7 +93,6 @@ class _GamesPageState extends State<GamesPage> {
             if (gamesProvider.isLoading) {
               return const Center(child: CircularProgressIndicator());
             }
-
             final allGames = gamesProvider.games ?? [];
             final starUsers = starUsersProvider.starUsers;
 
@@ -143,18 +142,18 @@ class _GamesPageState extends State<GamesPage> {
                               itemCount: filteredGames.length,
                               itemBuilder: (context, index) {
                                 final record = filteredGames[index];
-                                final id = record['game_id'] ?? '';
+                                final id = record.gameId ?? '';
                                 final participants =
-                                    record['winner_name'].toString() +
+                                    record.winnerName.toString() +
                                             ' vs ' +
-                                            record['loser_name'].toString() ??
+                                            record.loserName.toString() ??
                                         '';
                                 final date =
-                                    DateTime.parse(record['created_at'] ?? '')
+                                    DateTime.parse(record.createdAt.toString())
                                         .toLocal()
                                         .toString()
                                         .substring(0, 16);
-                                final winner = record['winner_name'] ?? '';
+                                final winner = record.winnerName ?? '';
 
                                 return Padding(
                                   padding: const EdgeInsets.symmetric(

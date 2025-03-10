@@ -5,6 +5,7 @@ import '../providers/users_info_provider.dart';
 import '../services/token_service.dart';
 import 'user_list.dart';
 import 'games.dart';
+import '../services/user_service.dart';
 
 class WinLoseSelect extends StatefulWidget {
   final String myName;
@@ -135,6 +136,11 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
     );
 
     if (success) {
+      try {
+        await UserService().cancelMatchRequest();
+      } catch (e) {
+        print('매칭 요청 취소 중 오류: $e');
+      }
       // 경기 생성 성공 시 경기기록 화면으로 이동
       if (!mounted) return;
       Navigator.pushReplacement(
