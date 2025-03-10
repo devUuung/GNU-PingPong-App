@@ -64,10 +64,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _navigateToLogin() {
-    Navigator.pushReplacementNamed(context, '/login');
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {

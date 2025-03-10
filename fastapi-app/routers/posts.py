@@ -221,6 +221,90 @@ async def get_recruit_posts(current_user: User = Depends(get_current_active_user
         )
 
 
+# 모집 공고 상세 조회
+@router.get("/recruit/post/{post_id}", tags=["recruit"])
+async def get_recruit_post(
+    post_id: int, current_user: User = Depends(get_current_active_user)
+):
+    try:
+        with Session(engine) as session:
+            post = session.exec(select(Post).where(Post.post_id == post_id)).first()
+
+            if not post:
+                return JSONResponse(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    content={"success": False, "message": "게시물을 찾을 수 없습니다."},
+                )
+
+            post_data = post.dict()
+            post_data["writer_id"] = post.creator_id
+            post_data["title"] = post.title
+            post_data["content"] = post.content
+            post_data["max_user"] = post.max_participants
+            post_data["game_at"] = post.meeting_time
+            post_data["game_place"] = post.location if hasattr(post, "location") else ""
+
+            return {"success": True, "post": post_data}
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "message": f"서버 오류: {str(e)}"},
+        )
+
+
+# 모집 공고 수정
+@router.put("/recruit/post/{post_id}", tags=["recruit"])
+async def update_recruit_post(
+    post_id: int,
+    post_data: RecruitPostData,
+    current_user: User = Depends(get_current_active_user),
+):
+    try:
+        with Session(engine) as session:
+            # 게시물 존재 여부 확인
+            post = session.exec(select(Post).where(Post.post_id == post_id)).first()
+
+            if not post:
+                return JSONResponse(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    content={"success": False, "message": "게시물을 찾을 수 없습니다."},
+                )
+
+            # 작성자 확인 (작성자만 수정 가능)
+            if post.creator_id != current_user.user_id:
+                return JSONResponse(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    content={
+                        "success": False,
+                        "message": "게시물 수정 권한이 없습니다.",
+                    },
+                )
+
+            # 게시물 정보 업데이트
+            post.title = post_data.title
+            post.content = post_data.content
+            post.max_participants = post_data.max_user
+            post.meeting_time = post_data.game_at
+
+            # location 필드가 있는지 확인하고 업데이트
+            if hasattr(post, "location"):
+                post.location = post_data.game_place
+
+            # 변경사항 커밋
+            session.add(post)
+            session.commit()
+            session.refresh(post)
+
+            return {"success": True, "message": "게시물이 성공적으로 수정되었습니다."}
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "message": f"서버 오류: {str(e)}"},
+        )
+
+
 # API v1 경로 - 원래 main.py에 있던 것과 동일한 엔드포인트
 @router.get("/v1/recruit/posts", tags=["recruit"])
 async def get_recruit_posts_v1():

@@ -73,7 +73,7 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
       // 모집공고 상세 정보 가져오기
       final token = await _secureStorage.read(key: 'access_token');
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/posts/${widget.postId}'),
+        Uri.parse('${ApiConfig.baseUrl}/recruit/post/${widget.postId}'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

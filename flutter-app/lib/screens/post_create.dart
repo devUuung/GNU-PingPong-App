@@ -133,7 +133,7 @@ class _RecruitPostPageState extends State<RecruitPostPage> {
         // 응답 처리
         final responseData = jsonDecode(response.body);
 
-        if (response.statusCode == 200 && responseData['success'] == true) {
+        if (response.statusCode == 201 && responseData['success'] == true) {
           // 성공 시 처리
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
