@@ -335,7 +335,7 @@ async def delete_recruit_post(post_id: int, user_id: int):
     try:
         with Session(engine) as session:
             # 게시물 존재 여부 확인
-            post = session.exec(select(Post).where(Post.post_id == post_id)).first()
+            post = session.exec(select(Post).where(Post.post_id == post_id)).first()[0]
 
             if not post:
                 return JSONResponse(
@@ -344,10 +344,10 @@ async def delete_recruit_post(post_id: int, user_id: int):
                 )
 
             # 디버깅 정보 출력
-            print(f"삭제 요청 user_id: {user_id}, 게시물 creator_id: {post.creator_id}")
+            print(f"삭제 요청 user_id: {user_id}, 게시물 writer_id: {post.writer_id}")
 
             # 작성자 확인 (작성자만 삭제 가능)
-            if post.creator_id != user_id:
+            if post.writer_id != user_id:
                 return JSONResponse(
                     status_code=status.HTTP_403_FORBIDDEN,
                     content={
