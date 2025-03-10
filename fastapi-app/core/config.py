@@ -32,8 +32,12 @@ class Settings(BaseSettings):
 
     # 서버 URL 설정
     SERVER_HOST: str = os.getenv("SERVER_HOST", "0.0.0.0")
-
     PORT: int = os.getenv("PORT", 8000)
+
+    # SSL 설정
+    SSL_ENABLED: bool = os.getenv("SSL_ENABLED", "True").lower() in ("true", "1", "t")
+    SSL_CERTFILE: str = os.getenv("SSL_CERTFILE", "certs/cert.pem")
+    SSL_KEYFILE: str = os.getenv("SSL_KEYFILE", "certs/key.pem")
 
     class Config:
         case_sensitive = True

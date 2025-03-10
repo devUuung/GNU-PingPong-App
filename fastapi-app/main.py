@@ -537,4 +537,15 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host=settings.SERVER_HOST, port=settings.PORT)
+    if settings.SSL_ENABLED:
+        # SSL 설정이 활성화된 경우 HTTPS로 실행
+        uvicorn.run(
+            app,
+            host=settings.SERVER_HOST,
+            port=settings.PORT,
+            ssl_keyfile=settings.SSL_KEYFILE,
+            ssl_certfile=settings.SSL_CERTFILE,
+        )
+    else:
+        # SSL 설정이 비활성화된 경우 HTTP로 실행
+        uvicorn.run(app, host=settings.SERVER_HOST, port=settings.PORT)
