@@ -7,6 +7,9 @@ on:
     branches: [main, master]
   workflow_dispatch: # 수동으로 워크플로우 실행 가능
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
