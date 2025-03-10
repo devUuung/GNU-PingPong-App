@@ -25,6 +25,9 @@ from models import (
 
 router = APIRouter(prefix=f"{settings.API_V1_STR}/posts", tags=["posts"])
 
+# 새로운 라우터 추가 - 직접적인 /api/v1/recruit 경로 처리용
+recruit_router = APIRouter(prefix="/api/v1/recruit", tags=["recruit"])
+
 
 # 게시물 생성 모델
 class PostCreate(BaseModel):
@@ -312,3 +315,68 @@ async def get_recruit_posts_v1():
     return await get_recruit_posts(
         None
     )  # current_user는 None으로 처리 (권한 체크 무시)
+
+
+# 클라이언트 요청 경로에 맞추는 GET 엔드포인트
+@router.get("/v1/recruit/post/{post_id}", tags=["recruit"])
+async def get_recruit_post_v1(post_id: int):
+    # 기존 함수 재사용
+    return await get_recruit_post(post_id, None)
+
+
+# 클라이언트 요청 경로에 맞추는 PUT 엔드포인트
+@router.put("/v1/recruit/post/{post_id}", tags=["recruit"])
+async def update_recruit_post_v1(post_id: int, post_data: RecruitPostData):
+    # 기존 함수 재사용
+    return await update_recruit_post(post_id, post_data, None)
+
+
+# 새 recruit_router에 추가하는 엔드포인트들
+
+
+# 모집 공고 수정 API
+@recruit_router.put("/post/{post_id}")
+async def update_recruit_post_v1(post_id: int, post_data: RecruitPostData):
+    try:
+        with Session(engine) as session:
+            # 게시물 존재 여부 확인
+            post = session.exec(select(Post).where(Post.post_id == post_id)).first()
+
+            if not post:
+                return JSONResponse(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    content={"success": False, "message": "게시물을 찾을 수 없습니다."},
+                )
+
+            # 작성자 확인 (작성자만 수정 가능)
+            if post.creator_id != post_data.user_id:
+                return JSONResponse(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    content={
+                        "success": False,
+                        "message": "게시물 수정 권한이 없습니다.",
+                    },
+                )
+
+            # 게시물 정보 업데이트
+            post.title = post_data.title
+            post.content = post_data.content
+            post.max_participants = post_data.max_user
+            post.meeting_time = post_data.game_at
+
+            # location 필드가 있는지 확인하고 업데이트
+            if hasattr(post, "location"):
+                post.location = post_data.game_place
+
+            # 변경사항 커밋
+            session.add(post)
+            session.commit()
+            session.refresh(post)
+
+            return {"success": True, "message": "게시물이 성공적으로 수정되었습니다."}
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "message": f"서버 오류: {str(e)}"},
+        )
