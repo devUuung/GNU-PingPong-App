@@ -356,11 +356,34 @@ async def delete_recruit_post(post_id: int, user_id: int):
                     },
                 )
 
-            # 게시물 삭제
-            session.delete(post)
-            session.commit()
+            try:
+                # 1. 먼저 해당 게시물에 연결된 모든 참가자 정보를 삭제 (외래키 제약조건 해결)
+                participants = session.exec(
+                    select(PostParticipant).where(PostParticipant.post_id == post_id)
+                ).all()
 
-            return {"success": True, "message": "게시물이 성공적으로 삭제되었습니다."}
+                print(f"삭제할 참가자 수: {len(participants)}")
+
+                for participant in participants:
+                    session.delete(participant)
+
+                # 변경사항 커밋
+                session.commit()
+
+                # 2. 그 후에 게시물 삭제
+                session.delete(post)
+                session.commit()
+
+                return {
+                    "success": True,
+                    "message": "게시물이 성공적으로 삭제되었습니다.",
+                }
+
+            except Exception as db_error:
+                # 데이터베이스 작업 중 오류 발생 시 롤백
+                session.rollback()
+                print(f"데이터베이스 작업 중 오류: {str(db_error)}")
+                raise db_error
 
     except Exception as e:
         print(f"게시물 삭제 중 오류 발생: {str(e)}")  # 디버깅용 로그
