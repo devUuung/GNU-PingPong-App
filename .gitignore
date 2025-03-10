@@ -25,3 +25,39 @@ env/
 
 .flutter-plugins
 .flutter-plugins-dependencies
+
+# SSL 인증서 파일
+certs/
+*.pem
+*.key
+*.crt
+*.cer
+*.der
+*.p12
+*.pfx
+
+# 환경 변수 파일
+.env
+
+# 기타 일반적인 제외 파일들
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+.DS_Store 
