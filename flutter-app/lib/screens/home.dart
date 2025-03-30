@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/users_info_provider.dart';
-import '../providers/games_info_provider.dart';
-import '../providers/star_users_info_provider.dart';
-import '../services/user_service.dart';
 import '../widgets/common/loading_indicator.dart';
-import '../utils/dialog_utils.dart';
 import '../widgets/bottom_bar.dart';
 import '../widgets/app_bar.dart';
 import '../widgets/favorite_users_widget.dart';
 import '../widgets/post.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+final supabase = Supabase.instance.client;
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -19,50 +16,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final UserService _userService = UserService();
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserData();
-  }
-
-  Future<void> _loadUserData() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // 사용자 정보 로드
-      final usersProvider =
-          Provider.of<UsersInfoProvider>(context, listen: false);
-      await usersProvider.fetchCurrentUser();
-
-      // if (usersProvider.currentUser == null) {
-      //   // 로그인 화면으로 이동
-      //   _navigateToLogin();
-      //   return;
-      // }
-
-      // 게임 정보 로드
-      final gamesProvider =
-          Provider.of<GamesInfoProvider>(context, listen: false);
-      gamesProvider.fetchAllGames();
-
-      // 즐겨찾기 사용자 정보 로드
-      final starUsersProvider =
-          Provider.of<StarUsersInfoProvider>(context, listen: false);
-      await starUsersProvider.loadStarUsers();
-    } catch (e) {
-      debugPrint('홈 화면 데이터 로드 중 오류: $e');
-      showErrorDialog(context, '데이터를 불러오는 중 오류가 발생했습니다.');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -117,10 +71,7 @@ class _HomePageState extends State<HomePage> {
                     TextButton(
                       onPressed: () {
                         // 명명된 라우트를 사용하여 글쓰기 화면으로 이동
-                        Navigator.pushNamed(context, '/post_create').then((_) {
-                          // 게시물 작성 후 화면으로 돌아올 때 데이터 새로고침
-                          _loadUserData();
-                        });
+                        Navigator.pushNamed(context, '/post_create');
                       },
                       child: const Text(
                         '글쓰기',

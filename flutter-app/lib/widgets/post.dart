@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/screens/post_edit.dart';
-import 'package:flutter_app/services/api_client.dart';
-import 'package:flutter_app/api_config.dart';
-import 'package:flutter_app/dialog.dart' as app_dialog;
-import 'package:flutter_app/utils/index.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:flutter_app/services/post_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+final supabase = Supabase.instance.client;
 
 /// 게시글 위젯
 class Post extends StatefulWidget {
@@ -20,10 +15,9 @@ class Post extends StatefulWidget {
 }
 
 class _PostState extends State<Post> {
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   List<Map<String, dynamic>> _posts = [];
   bool _isLoading = true;
-  int? _currentUserId;
+  String? _currentUserId;
 
   @override
   void initState() {
@@ -38,110 +32,45 @@ class _PostState extends State<Post> {
       _isLoading = true;
     });
 
-    try {
-      // 현재 사용자 ID 가져오기
-      final tokenResult = await ApiClient().validateToken();
-      debugPrint('tokenResult: $tokenResult');
-      _currentUserId = tokenResult['user_id'];
+    // 현재 사용자 ID 가져오기
+    final user = supabase.auth.currentUser;
+    _currentUserId = user?.id;
 
-      // 모집공고 목록 가져오기
-      final token = await ApiClient().getToken();
-      final client = http.Client();
-      try {
-        final response = await client.get(
-          Uri.parse('${ApiConfig.baseUrl}/recruit/posts'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        ).timeout(const Duration(seconds: 15));
-
-        final responseData = jsonDecode(response.body);
-
-        if (response.statusCode == 200 && responseData['success'] == true) {
-          setState(() {
-            _posts = List<Map<String, dynamic>>.from(responseData['posts']);
-            _isLoading = false;
-          });
-        } else {
-          app_dialog.showErrorDialog(
-              context, responseData['message'] ?? '모집공고를 불러오는데 실패했습니다.');
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      } finally {
-        client.close();
-      }
-    } catch (e) {
-      ErrorHandler.showErrorDialog(context, e);
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    // 모집공고 목록 가져오기
+    final posts = await supabase.from('post').select('*');
+    setState(() {
+      _posts = List<Map<String, dynamic>>.from(posts);
+      _isLoading = false;
+    });
   }
 
   // 모집공고 삭제
   Future<void> _deletePost(int postId) async {
-    try {
-      final token = await _secureStorage.read(key: 'access_token');
-      final response = await http.delete(
-        Uri.parse(
-            '${ApiConfig.baseUrl}/recruit/post/$postId?user_id=$_currentUserId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('모집공고가 삭제되었습니다.')),
-        );
-        _fetchPosts(); // 목록 새로고침
-      } else {
-        app_dialog.showErrorDialog(
-            context, responseData['message'] ?? '모집공고 삭제에 실패했습니다.');
-      }
-    } catch (e) {
-      app_dialog.showErrorDialog(context, '오류가 발생했습니다: $e');
-    }
+    await supabase.from('posts').delete().eq('post_id', postId);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('모집공고가 삭제되었습니다.')),
+    );
+    _fetchPosts(); // 목록 새로고침
   }
 
   // 모집공고 참가 취소
   Future<void> _leavePost(int postId) async {
-    try {
-      final token = await _secureStorage.read(key: 'access_token');
-      final client = http.Client();
-      try {
-        final response = await client.delete(
-          Uri.parse(
-              '${ApiConfig.baseUrl}/recruit/post/$postId/leave?user_id=$_currentUserId'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        ).timeout(const Duration(seconds: 15));
+    await supabase.from('post_participant').delete().eq('post_id', postId);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('모집공고 참가를 취소했습니다.')),
+    );
+    _fetchPosts(); // 목록 새로고침
+  }
 
-        final responseData = jsonDecode(response.body);
-
-        if (response.statusCode == 200 && responseData['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('모집공고 참가를 취소했습니다.')),
-          );
-          _fetchPosts(); // 목록 새로고침
-        } else {
-          app_dialog.showErrorDialog(
-              context, responseData['message'] ?? '모집공고 참가 취소에 실패했습니다.');
-        }
-      } finally {
-        client.close();
-      }
-    } catch (e) {
-      ErrorHandler.showErrorDialog(context, e);
-    }
+  Future<void> _participatePost(int postId) async {
+    await supabase.from('post_participant').insert({
+      'post_id': postId,
+      'user_id': _currentUserId,
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('모집공고에 참가했습니다.')),
+    );
+    _fetchPosts(); // 목록 새로고침
   }
 
   /// 삭제 확인 다이얼로그 표시 후, '예' 선택 시 Post 삭제 처리
@@ -314,8 +243,7 @@ class _PostState extends State<Post> {
                           backgroundColor: const Color(0xFF65558F),
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: () =>
-                            PostService().participatePost(post['post_id']),
+                        onPressed: () => _participatePost(post['post_id']),
                       ),
                     ],
                   ],

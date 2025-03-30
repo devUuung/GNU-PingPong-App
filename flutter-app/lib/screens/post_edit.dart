@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_app/services/api_client.dart';
 import 'package:flutter_app/widgets/app_bar.dart';
-import 'package:flutter_app/dialog.dart';
-import 'package:flutter_app/api_config.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/dialog_utils.dart';
+
+final supabase = Supabase.instance.client;
 
 /// 모집 공고 수정 페이지
 class RecruitEditPage extends StatefulWidget {
@@ -32,8 +30,6 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
   bool _isLoading = true;
   Map<String, dynamic>? _postData;
   int? _currentUserId;
-
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   @override
   void initState() {
@@ -59,54 +55,46 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
     });
 
     try {
-      // 토큰 유효성 검사
-      final tokenResult = await ApiClient().validateToken();
-      if (!tokenResult['isValid']) {
-        if (!mounted) return;
+      final user = supabase.auth.currentUser;
+      if (user == null) {
         showErrorDialog(context, '로그인이 필요합니다.');
         Navigator.pop(context);
         return;
       }
 
-      _currentUserId = tokenResult['user_id'];
+      _currentUserId = int.parse(user.id);
 
       // 모집공고 상세 정보 가져오기
-      final token = await ApiClient().getToken();
-      final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/recruit/post/${widget.postId}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await supabase
+          .from('post')
+          .select('*')
+          .eq('id', widget.postId)
+          .single();
 
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && responseData['success'] == true) {
+      if (response.isNotEmpty) {
         setState(() {
-          _postData = responseData['post'];
+          _postData = response;
           _isLoading = false;
 
           // 폼 필드 초기화
           _titleController.text = _postData!['title'] ?? '';
           _contentController.text = _postData!['content'] ?? '';
           _maxUserController.text = _postData!['max_user'].toString();
-          _locationController.text = _postData!['game_place'] ?? '';
+          _locationController.text = _postData!['place'] ?? '';
 
           // 날짜 시간 설정
-          _selectedDateTime = DateTime.parse(_postData!['game_at']);
+          _selectedDateTime = DateTime.parse(_postData!['created_at']);
           _dateTimePickerController.text =
               DateFormat('yyyy-MM-dd HH:mm').format(_selectedDateTime!);
 
           // 작성자 확인
-          if (_postData!['writer_id'] != _currentUserId) {
+          if (_postData!['user_id'] != _currentUserId.toString()) {
             showErrorDialog(context, '수정 권한이 없습니다.');
             Navigator.pop(context);
           }
         });
       } else {
-        showErrorDialog(
-            context, responseData['message'] ?? '모집공고를 불러오는데 실패했습니다.');
+        showErrorDialog(context, '모집공고를 불러오는데 실패했습니다.');
         Navigator.pop(context);
       }
     } catch (e) {
@@ -152,53 +140,29 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
     });
 
     try {
-      // 요청 데이터 준비
-      final requestData = {
-        'post_id': widget.postId,
-        'title': _titleController.text.trim(),
-        'game_at': _selectedDateTime!.toIso8601String(),
-        'game_place': _locationController.text.trim(),
-        'max_user': int.parse(_maxUserController.text.trim()),
-        'content': _contentController.text.trim(),
-        'user_id': _currentUserId,
-      };
+      final response = await supabase
+          .from('post')
+          .update({
+            'title': _titleController.text.trim(),
+            'place': _locationController.text.trim(),
+            'max_user': int.parse(_maxUserController.text.trim()),
+            'content': _contentController.text.trim(),
+            'created_at': _selectedDateTime!.toIso8601String(),
+          })
+          .eq('id', widget.postId)
+          .eq('user_id', _currentUserId.toString());
 
-      // API 요청 보내기
-      final token = await ApiClient().getToken();
-      final client = http.Client();
-      try {
-        final response = await client
-            .put(
-              Uri.parse('${ApiConfig.baseUrl}/recruit/post/${widget.postId}'),
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer $token',
-              },
-              body: jsonEncode(requestData),
-            )
-            .timeout(const Duration(seconds: 15));
-
-        // 응답 처리
-        final responseData = jsonDecode(response.body);
-
-        if (response.statusCode == 200 && responseData['success'] == true) {
-          // 성공 시 처리
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('모집공고가 수정되었습니다.')),
-            );
-            Navigator.pop(context); // 이전 화면으로 돌아가기
-          }
-        } else {
-          // 실패 시 처리
-          showErrorDialog(
-              context, responseData['message'] ?? '모집공고 수정에 실패했습니다.');
+      if (response.isNotEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('모집공고가 수정되었습니다.')),
+          );
+          Navigator.pop(context);
         }
-      } finally {
-        client.close();
+      } else {
+        showErrorDialog(context, '모집공고 수정에 실패했습니다.');
       }
     } catch (e) {
-      // 예외 처리
       showErrorDialog(context, '오류가 발생했습니다: $e');
     } finally {
       if (mounted) {

@@ -1,15 +1,13 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-import 'package:flutter_app/providers/games_info_provider.dart';
-import 'package:flutter_app/providers/users_info_provider.dart';
-import 'package:flutter_app/providers/star_users_info_provider.dart';
 import 'package:flutter_app/screens/login.dart';
 import 'package:flutter_app/screens/post_create.dart';
 import 'package:flutter_app/screens/home.dart';
 import 'package:intl/date_symbol_data_local.dart';
 // import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   // Flutter 엔진이 위젯을 바인딩하기 전에 플러그인 초기화 보장
@@ -24,18 +22,16 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  initializeDateFormatting('ko_KR');
+  await dotenv.load(fileName: '.env');
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => GamesInfoProvider()),
-        ChangeNotifierProvider(create: (context) => UsersInfoProvider()),
-        ChangeNotifierProvider(create: (context) => StarUsersInfoProvider()),
-      ],
-      child: const MyApp(),
-    ),
-  );
+  const supabaseUrl = 'https://neyijpnwimzgeszwupzh.supabase.co';
+  final supabaseKey = dotenv.env['SUPABASE_KEY']!;
+
+  initializeDateFormatting('ko_KR');
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
+  await Supabase.instance.client.auth.signOut();
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -49,7 +45,6 @@ class MyApp extends StatelessWidget {
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginPage(),
-        '/home': (context) => const HomePage(),
         '/post_create': (context) => const RecruitPostPage(),
       },
     );
