@@ -24,6 +24,12 @@ jobs:
           channel: "stable"
           cache: true
 
+      # Add a step to setup the correct Dart SDK version
+      - name: Setup Dart SDK
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.6.1"
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -62,6 +68,12 @@ jobs:
           flutter-version: "3.16.x"
           channel: "stable"
           cache: true
+
+      # Add a step to setup the correct Dart SDK version
+      - name: Setup Dart SDK
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.6.1"
 
       - name: Install dependencies
         run: flutter pub get
