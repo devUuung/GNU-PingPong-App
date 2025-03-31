@@ -28,7 +28,7 @@ jobs:
       - name: Setup Dart SDK
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.6.1"
+          sdk: "3.2.6"
 
       - name: Install dependencies
         run: flutter pub get
@@ -73,7 +73,7 @@ jobs:
       - name: Setup Dart SDK
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.6.1"
+          sdk: "3.2.6"
 
       - name: Install dependencies
         run: flutter pub get
