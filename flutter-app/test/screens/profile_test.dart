@@ -34,7 +34,6 @@ class MockPostgrestFilterBuilder extends Mock
 
 class MockPostgrestTransformBuilder extends Mock
     implements PostgrestTransformBuilder<Map<String, dynamic>> {
-  @override
   Future<Map<String, dynamic>> execute() async => {
         'username': '테스트사용자',
         'avatar_url': '',

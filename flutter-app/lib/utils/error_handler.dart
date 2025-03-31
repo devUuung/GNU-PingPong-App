@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../utils/dialog_utils.dart';
 
 /// 네트워크 오류 처리를 위한 유틸리티 클래스
 class ErrorHandler {

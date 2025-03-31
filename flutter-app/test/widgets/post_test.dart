@@ -22,7 +22,6 @@ class MockSupabaseQueryBuilder extends Mock implements SupabaseQueryBuilder {
 
 class MockPostgrestFilterBuilder extends Mock
     implements PostgrestFilterBuilder<List<Map<String, dynamic>>> {
-  @override
   Future<List<Map<String, dynamic>>> execute() async => [];
 }
 
@@ -32,7 +31,6 @@ class TestPostgrestFilterBuilder extends Mock
 
   TestPostgrestFilterBuilder(this._data);
 
-  @override
   Future<List<Map<String, dynamic>>> execute() async => _data;
 }
 

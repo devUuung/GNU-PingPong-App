@@ -36,7 +36,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       await supabase.auth.signOut();
-      final session = await supabase.auth.currentSession;
+      final session = supabase.auth.currentSession;
 
       if (session != null && mounted) {
         _goHome();

@@ -9,7 +9,7 @@ import '../utils/dialog_utils.dart';
 final supabase = Supabase.instance.client;
 
 class EditProfilePage extends StatefulWidget {
-  const EditProfilePage({Key? key}) : super(key: key);
+  const EditProfilePage({super.key});
 
   @override
   State<EditProfilePage> createState() => _EditProfilePageState();
@@ -106,6 +106,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
     } catch (e) {
       debugPrint('이미지 선택 오류: $e');
+      if (!mounted) return;
       showErrorDialog(context, '이미지를 선택하는 중 오류가 발생했습니다.');
     }
   }
@@ -153,12 +154,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
       setState(() {
         _isLoading = false;
       });
+      if (!mounted) return;
       showErrorDialog(context, '변경된 정보가 없습니다.');
       return;
     }
 
-    final response =
-        await supabase.from('userinfo').update(updatedFields).eq('id', user.id);
+    await supabase.from('userinfo').update(updatedFields).eq('id', user.id);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

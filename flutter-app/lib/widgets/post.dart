@@ -8,7 +8,7 @@ final supabase = Supabase.instance.client;
 
 /// 게시글 위젯
 class Post extends StatefulWidget {
-  const Post({Key? key}) : super(key: key);
+  const Post({super.key});
 
   @override
   State<Post> createState() => _PostState();
@@ -47,6 +47,7 @@ class _PostState extends State<Post> {
   // 모집공고 삭제
   Future<void> _deletePost(int postId) async {
     await supabase.from('posts').delete().eq('post_id', postId);
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('모집공고가 삭제되었습니다.')),
     );
@@ -56,6 +57,7 @@ class _PostState extends State<Post> {
   // 모집공고 참가 취소
   Future<void> _leavePost(int postId) async {
     await supabase.from('post_participant').delete().eq('post_id', postId);
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('모집공고 참가를 취소했습니다.')),
     );
@@ -67,6 +69,7 @@ class _PostState extends State<Post> {
       'post_id': postId,
       'user_id': _currentUserId,
     });
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('모집공고에 참가했습니다.')),
     );

@@ -10,9 +10,9 @@ class CommonBottomNavigationBar extends StatelessWidget {
   // 예: "home", "userList", "gameRecord", "settings" 등으로 구분
 
   const CommonBottomNavigationBar({
-    Key? key,
+    super.key,
     required this.currentPage,
-  }) : super(key: key);
+  });
 
   void _onItemTapped(BuildContext context, int index) {
     // 현재 페이지와 동일한 페이지를 선택한 경우 아무 작업도 하지 않음

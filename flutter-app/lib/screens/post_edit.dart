@@ -12,7 +12,7 @@ final supabase = Supabase.instance.client;
 class RecruitEditPage extends StatefulWidget {
   final int postId;
 
-  const RecruitEditPage({Key? key, required this.postId}) : super(key: key);
+  const RecruitEditPage({super.key, required this.postId});
 
   @override
   State<RecruitEditPage> createState() => _RecruitEditPageState();
@@ -73,6 +73,7 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
           .single();
 
       if (response.isNotEmpty) {
+        if (!mounted) return;
         setState(() {
           _postData = response;
           _isLoading = false;
@@ -95,6 +96,7 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
           }
         });
       } else {
+        if (!mounted) return;
         showErrorDialog(context, '모집공고를 불러오는데 실패했습니다.');
         Navigator.pop(context);
       }
@@ -114,6 +116,8 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
       lastDate: DateTime(2100),
     );
     if (date == null) return;
+
+    if (!mounted) return;
 
     // 시간 선택
     final TimeOfDay? time = await showTimePicker(
@@ -365,7 +369,7 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
           // 로딩 오버레이
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withAlpha(77),
               child: const Center(
                 child: CircularProgressIndicator(),
               ),

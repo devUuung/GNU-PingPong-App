@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 final supabase = Supabase.instance.client;
 
 class FavoriteUsersWidget extends StatefulWidget {
-  const FavoriteUsersWidget({Key? key}) : super(key: key);
+  const FavoriteUsersWidget({super.key});
 
   @override
   State<FavoriteUsersWidget> createState() => _FavoriteUsersWidgetState();
@@ -36,7 +36,7 @@ class _FavoriteUsersWidgetState extends State<FavoriteUsersWidget> {
         });
       }
     } catch (e) {
-      print('Error loading starred users: $e');
+      debugPrint('Error loading starred users: $e');
     }
   }
 

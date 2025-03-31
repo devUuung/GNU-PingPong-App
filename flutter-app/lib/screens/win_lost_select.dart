@@ -11,12 +11,12 @@ class WinLoseSelect extends StatefulWidget {
   final int otherId;
 
   const WinLoseSelect({
-    Key? key,
+    super.key,
     required this.myName,
     required this.otherName,
     required this.myId,
     required this.otherId,
-  }) : super(key: key);
+  });
 
   @override
   State<WinLoseSelect> createState() => _WinLoseSelectState();
@@ -49,7 +49,7 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
           onPressed: _winnerTag == null
               ? null
               : () async {
-                  await _onConfirm(context);
+                  await _onConfirm();
                 },
           style: ElevatedButton.styleFrom(
             backgroundColor: _winnerTag == null ? Colors.grey : Colors.blue,
@@ -96,7 +96,7 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
   }
 
   /// '확인' 버튼 누르면 실행되는 로직
-  Future<void> _onConfirm(BuildContext context) async {
+  Future<void> _onConfirm() async {
     final winnerId = _winnerTag == 'myName' ? widget.myId : widget.otherId;
     final loserId = _winnerTag == 'myName' ? widget.otherId : widget.myId;
     const plusScore = 1;
@@ -127,18 +127,16 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
       // 매칭 요청 취소
       await supabase.from('match_requests').delete().eq('user_id', widget.myId);
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const GamesPage()),
-        );
-      }
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const GamesPage()),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("오류가 발생했습니다: $e")),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("오류가 발생했습니다: $e")),
+      );
     }
   }
 

@@ -8,10 +8,10 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool showNotificationIcon; // 알림 아이콘 표시 여부
 
   const CommonAppBar({
-    Key? key,
+    super.key,
     required this.currentPage,
     this.showNotificationIcon = true, // 기본값은 true
-  }) : super(key: key);
+  });
 
   // AppBar 기본 높이
   @override

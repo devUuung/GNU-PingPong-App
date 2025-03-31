@@ -1,6 +1,5 @@
 // lib/screens/user_list.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_app/widgets/bottom_bar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/dialog_utils.dart';
@@ -64,7 +63,7 @@ class _UserListPageState extends State<UserListPage> {
           return '0%';
         }
         double winRate = (user['win_count'] / user['game_count']) * 100;
-        return winRate.toStringAsFixed(2) + '%';
+        return '${winRate.toStringAsFixed(2)}%';
       default:
         return user['score']?.toString() ?? '';
     }
@@ -76,7 +75,7 @@ class _UserListPageState extends State<UserListPage> {
     String winRate = '0%';
     if (user['game_count'] != null && user['game_count'] > 0) {
       double rate = (user['win_count'] / user['game_count']) * 100;
-      winRate = rate.toStringAsFixed(2) + '%';
+      winRate = '${rate.toStringAsFixed(2)}%';
     }
 
     showDialog(
@@ -241,9 +240,9 @@ class _UserListPageState extends State<UserListPage> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
+    return PopScope(
       // 뒤로가기 버튼 비활성화
-      onWillPop: () async => false,
+      canPop: false,
       child: Scaffold(
         // 상단 AppBar
         appBar: AppBar(

@@ -72,7 +72,7 @@ class _FindUserPageState extends State<FindUserPage> {
           .eq('user_id', user.id)
           .single();
 
-      if (myRequest != null && mounted) {
+      if (myRequest.isNotEmpty && mounted) {
         setState(() {
           _isRequestingMatch = true;
         });
@@ -122,6 +122,7 @@ class _FindUserPageState extends State<FindUserPage> {
 
         await _loadMatchRequests();
         _startRefreshTimer();
+        if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -450,19 +451,17 @@ class _FindUserPageState extends State<FindUserPage> {
     return GestureDetector(
       onTap: () {
         if (!mounted) return;
-        Future.delayed(Duration.zero, () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => WinLoseSelect(
-                otherName: otherName,
-                otherId: otherUserId,
-                myName: myName,
-                myId: myUserId,
-              ),
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => WinLoseSelect(
+              otherName: otherName,
+              otherId: otherUserId,
+              myName: myName,
+              myId: myUserId,
             ),
-          );
-        });
+          ),
+        );
       },
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

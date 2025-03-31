@@ -162,11 +162,11 @@ class ProfileHeader extends StatelessWidget {
   final String profileImageUrl;
 
   const ProfileHeader({
-    Key? key,
+    super.key,
     required this.userName,
     required this.profileImageUrl,
     this.statusMessage = '',
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -245,10 +245,10 @@ class InfoRow extends StatelessWidget {
   final String value;
 
   const InfoRow({
-    Key? key,
+    super.key,
     required this.label,
     required this.value,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -294,13 +294,13 @@ class SettingsListItem extends StatelessWidget {
   final ValueChanged<bool>? onToggleChanged;
 
   const SettingsListItem({
-    Key? key,
+    super.key,
     required this.title,
     this.onTap,
     this.isToggle = false,
     this.toggleValue = false,
     this.onToggleChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
