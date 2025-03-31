@@ -9,6 +9,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./flutter-app
 
     steps:
       - name: Checkout code
@@ -45,6 +48,9 @@ jobs:
   build_ios:
     runs-on: macos-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    defaults:
+      run:
+        working-directory: ./flutter-app
 
     steps:
       - name: Checkout code
