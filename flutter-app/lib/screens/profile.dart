@@ -5,14 +5,13 @@ import 'package:flutter_app/widgets/app_bar.dart';
 import 'package:flutter_app/widgets/bottom_bar.dart';
 import 'package:flutter_app/screens/profile_edit.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart';
 import '../utils/dialog_utils.dart';
 import '../widgets/common/loading_indicator.dart';
 
 final supabase = Supabase.instance.client;
 
 class MyInfoPage extends StatefulWidget {
-  const MyInfoPage({Key? key}) : super(key: key);
+  const MyInfoPage({super.key});
 
   @override
   State<MyInfoPage> createState() => _MyInfoPageState();
