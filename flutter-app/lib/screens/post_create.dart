@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_app/widgets/app_bar.dart';
-import 'package:flutter_app/widgets/bottom_bar.dart';
-import 'package:intl/intl.dart'; // 날짜 포맷을 위해 추가
-import 'package:intl/date_symbol_data_local.dart'; // 로케일 데이터 초기화를 위해 추가
-import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/dialog_utils.dart';
-import '../widgets/common/loading_indicator.dart';
 
 final supabase = Supabase.instance.client;
 

@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 import '../utils/dialog_utils.dart';
-import '../widgets/common/loading_indicator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../screens/home.dart';
-import 'dart:io';
 import 'login.dart';
 
 final supabase = Supabase.instance.client;

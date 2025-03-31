@@ -5,7 +5,6 @@ import 'package:flutter_app/widgets/app_bar.dart';
 import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/dialog_utils.dart';
-import '../widgets/common/loading_indicator.dart';
 
 final supabase = Supabase.instance.client;
 

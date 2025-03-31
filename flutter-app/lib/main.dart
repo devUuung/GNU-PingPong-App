@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app/screens/login.dart';
-import 'package:flutter_app/screens/post_create.dart';
 import 'package:intl/date_symbol_data_local.dart';
 // import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -44,7 +43,6 @@ class MyApp extends StatelessWidget {
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginPage(),
-        '/post_create': (context) => const RecruitPostPage(),
       },
     );
   }
