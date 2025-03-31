@@ -20,8 +20,8 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.10.5"
-          channel: "stable"
+          flutter-version: "3.12.0"
+          channel: "beta"
           cache: true
 
       # Add a step to setup the correct Dart SDK version
@@ -65,8 +65,8 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.10.5"
-          channel: "stable"
+          flutter-version: "3.12.0"
+          channel: "beta"
           cache: true
 
       # Add a step to setup the correct Dart SDK version
