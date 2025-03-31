@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app/screens/login.dart';
 import 'package:flutter_app/screens/post_create.dart';
-import 'package:flutter_app/screens/home.dart';
 import 'package:intl/date_symbol_data_local.dart';
 // import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -35,7 +34,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {

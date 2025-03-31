@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'win_lost_select.dart';
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,10 +7,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 final supabase = Supabase.instance.client;
 
 class FindUserPage extends StatefulWidget {
-  const FindUserPage({Key? key}) : super(key: key);
+  const FindUserPage({super.key});
 
   @override
-  _FindUserPageState createState() => _FindUserPageState();
+  State<FindUserPage> createState() => _FindUserPageState();
 }
 
 class _FindUserPageState extends State<FindUserPage> {
@@ -43,7 +44,7 @@ class _FindUserPageState extends State<FindUserPage> {
         });
       }
     } catch (e) {
-      print('사용자 정보 로드 중 오류: $e');
+      debugPrint('사용자 정보 로드 중 오류: $e');
     }
   }
 
@@ -57,6 +58,7 @@ class _FindUserPageState extends State<FindUserPage> {
   }
 
   Future<void> _checkMatchStatus() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
@@ -71,7 +73,7 @@ class _FindUserPageState extends State<FindUserPage> {
           .eq('user_id', user.id)
           .single();
 
-      if (myRequest != null) {
+      if (myRequest != null && mounted) {
         setState(() {
           _isRequestingMatch = true;
         });
@@ -79,7 +81,7 @@ class _FindUserPageState extends State<FindUserPage> {
         _startRefreshTimer();
       }
     } catch (e) {
-      print('매칭 상태 확인 중 오류: $e');
+      debugPrint('매칭 상태 확인 중 오류: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -100,6 +102,7 @@ class _FindUserPageState extends State<FindUserPage> {
   Future<void> _startMatchRequest() async {
     if (_isRequestingMatch) return;
 
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
@@ -113,14 +116,14 @@ class _FindUserPageState extends State<FindUserPage> {
         'created_at': DateTime.now().toIso8601String(),
       });
 
-      setState(() {
-        _isRequestingMatch = true;
-      });
-
-      await _loadMatchRequests();
-      _startRefreshTimer();
-
       if (mounted) {
+        setState(() {
+          _isRequestingMatch = true;
+        });
+
+        await _loadMatchRequests();
+        _startRefreshTimer();
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('경기 입력 상태가 시작되었습니다.'),
@@ -129,7 +132,7 @@ class _FindUserPageState extends State<FindUserPage> {
         );
       }
     } catch (e) {
-      print('매칭 요청 시작 중 오류: $e');
+      debugPrint('매칭 요청 시작 중 오류: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -174,7 +177,7 @@ class _FindUserPageState extends State<FindUserPage> {
         );
       }
     } catch (e) {
-      print('매칭 요청 취소 중 오류: $e');
+      debugPrint('매칭 요청 취소 중 오류: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -231,7 +234,7 @@ class _FindUserPageState extends State<FindUserPage> {
         return;
       } catch (e) {
         retryCount++;
-        print('매칭 요청 목록 로드 중 오류($retryCount/$maxRetries): $e');
+        debugPrint('매칭 요청 목록 로드 중 오류($retryCount/$maxRetries): $e');
 
         if (retryCount >= maxRetries) {
           if (mounted) {
@@ -447,6 +450,7 @@ class _FindUserPageState extends State<FindUserPage> {
   ) {
     return GestureDetector(
       onTap: () {
+        if (!mounted) return;
         Future.delayed(Duration.zero, () {
           Navigator.push(
             context,
