@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../services/game_service.dart';
-import '../providers/users_info_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'user_list.dart';
 import 'games.dart';
-import '../services/user_service.dart';
-import 'package:flutter_app/services/api_client.dart';
+
+final supabase = Supabase.instance.client;
 
 class WinLoseSelect extends StatefulWidget {
   final String myName;
@@ -28,15 +26,6 @@ class WinLoseSelect extends StatefulWidget {
 class _WinLoseSelectState extends State<WinLoseSelect> {
   /// 'myName' 혹은 'otherName'만 선택되도록 저장
   String? _winnerTag; // 'myName' | 'otherName' | null
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<UsersInfoProvider>(context, listen: false)
-          .fetchUsersInfo(context);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,13 +73,9 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
             Flexible(
               child: Container(
                 margin: const EdgeInsets.only(left: 16),
-                child: Consumer<UsersInfoProvider>(
-                  builder: (context, usersInfoProvider, child) {
-                    return _buildNameButton(
-                      label: widget.myName,
-                      tag: 'myName',
-                    );
-                  },
+                child: _buildNameButton(
+                  label: widget.myName,
+                  tag: 'myName',
                 ),
               ),
             ),
@@ -113,51 +98,48 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
 
   /// '확인' 버튼 누르면 실행되는 로직
   Future<void> _onConfirm(BuildContext context) async {
-    // 선택 결과에 따라 승자와 패자의 id 결정
     final winnerId = _winnerTag == 'myName' ? widget.myId : widget.otherId;
     final loserId = _winnerTag == 'myName' ? widget.otherId : widget.myId;
-
-    // 점수 변화 값 (필요에 따라 조정 가능)
     const plusScore = 1;
     const minusScore = 1;
 
-    // API를 호출하여 경기 생성
-    print('winnerId: $winnerId');
-    print('loserId: $loserId');
-    print('winnerName: ${widget.myName}');
-    print('loserName: ${widget.otherName}');
-    print('plusScore: $plusScore');
-    print('minusScore: $minusScore');
-    bool success = await CreateGameService.createGame(
-      winnerId: winnerId,
-      loserId: loserId,
-      plusScore: plusScore,
-      minusScore: minusScore,
-    );
+    try {
+      // 게임 기록 생성
+      await supabase.from('game').insert({
+        'winner_id': winnerId,
+        'loser_id': loserId,
+        'winner_name':
+            _winnerTag == 'myName' ? widget.myName : widget.otherName,
+        'loser_name': _winnerTag == 'myName' ? widget.otherName : widget.myName,
+      });
 
-    if (success) {
-      // 경기 생성 성공 시 매칭 요청 취소 시도
-      try {
-        final userService = UserService();
-        await userService.cancelMatchRequest();
-        debugPrint('매칭 요청 취소 성공');
-      } catch (e) {
-        debugPrint('매칭 요청 취소 중 오류: $e');
-        // 매칭 요청 취소 실패해도 경기 생성은 성공했으므로 계속 진행
+      // 승자 점수 업데이트
+      await supabase.rpc('update_user_score', params: {
+        'user_id': winnerId,
+        'score_change': plusScore,
+      });
+
+      // 패자 점수 업데이트
+      await supabase.rpc('update_user_score', params: {
+        'user_id': loserId,
+        'score_change': -minusScore,
+      });
+
+      // 매칭 요청 취소
+      await supabase.from('match_requests').delete().eq('user_id', widget.myId);
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const GamesPage()),
+        );
       }
-      // 경기 생성 성공 시 경기기록 화면으로 이동
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const GamesPage(),
-        ),
-      );
-    } else {
-      // 실패 시 스낵바로 오류 메시지 표시
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("경기 생성에 실패했습니다.")),
-      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("오류가 발생했습니다: $e")),
+        );
+      }
     }
   }
 

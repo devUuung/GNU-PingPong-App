@@ -1,15 +1,12 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/api_config.dart';
-import 'package:flutter_app/services/api_client.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_app/widgets/app_bar.dart';
-import 'package:flutter_app/dialog.dart';
-import 'package:http/http.dart' as http;
-import 'package:provider/provider.dart';
-import 'package:flutter_app/providers/users_info_provider.dart';
 import 'dart:io';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/dialog_utils.dart';
+
+final supabase = Supabase.instance.client;
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({Key? key}) : super(key: key);
@@ -22,18 +19,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // 초기값을 별도 변수로 관리하여 변경 여부 비교
   String _initialNickname = '';
   String _initialStatusMsg = '';
-  String _profileImageUrl = '';
-
-  // 기본 프로필 이미지 URL
-  final String _defaultProfileImageUrl =
-      '${ApiConfig.baseUrl}/static/default_profile.png';
+  String _avatarImageUrl = '';
 
   late TextEditingController _nicknameController;
   late TextEditingController _statusMessageController;
 
   // 갤러리에서 선택된 프로필 이미지 파일 (모바일/데스크톱에서는 path를 사용하고, 웹에서는 XFile와 바이트 데이터를 사용)
-  XFile? _profileImageFile;
-  Uint8List? _profileImageBytes; // 웹 전용 이미지 바이트 데이터
+  XFile? _avatarImageFile;
+  Uint8List? _avatarImageBytes; // 웹 전용 이미지 바이트 데이터
 
   // 로딩 상태
   bool _isLoading = true;
@@ -54,33 +47,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
       _isLoading = true;
     });
 
-    try {
-      // 사용자 정보 가져오기
-      await Provider.of<UsersInfoProvider>(context, listen: false)
-          .fetchUserInfo(context);
-      final userInfo =
-          Provider.of<UsersInfoProvider>(context, listen: false).userInfo;
-
-      if (userInfo != null) {
-        setState(() {
-          _initialNickname = userInfo.username ?? '';
-          _initialStatusMsg = userInfo.statusMessage ?? '';
-          _profileImageUrl =
-              userInfo.profileImageUrl ?? _defaultProfileImageUrl;
-
-          // 컨트롤러에 초기값 설정
-          _nicknameController.text = _initialNickname;
-          _statusMessageController.text = _initialStatusMsg;
-        });
-      }
-    } catch (e) {
-      debugPrint('사용자 정보 로드 오류: $e');
-      showErrorDialog(context, '사용자 정보를 불러오는 중 오류가 발생했습니다.');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+    final user = supabase.auth.currentUser;
+    if (user == null) {
+      showErrorDialog(context, '로그인이 필요합니다.');
+      Navigator.pop(context);
+      return;
     }
+    final userInfo =
+        await supabase.from('userinfo').select('*').eq('id', user.id).single();
+
+    setState(() {
+      _initialNickname = userInfo['username'] ?? '';
+      _initialStatusMsg = userInfo['status_message'] ?? '';
+      _avatarImageUrl = userInfo['avatar_url'] ?? '';
+
+      // 컨트롤러에 초기값 설정
+      _nicknameController.text = _initialNickname;
+      _statusMessageController.text = _initialStatusMsg;
+      _isLoading = false;
+    });
   }
 
   @override
@@ -106,13 +91,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
           // 웹: 바이트 데이터를 읽어서 저장
           final bytes = await pickedFile.readAsBytes();
           setState(() {
-            _profileImageFile = pickedFile;
-            _profileImageBytes = bytes;
+            _avatarImageFile = pickedFile;
+            _avatarImageBytes = bytes;
           });
         } else {
           // 모바일/데스크톱: XFile의 path 사용
           setState(() {
-            _profileImageFile = pickedFile;
+            _avatarImageFile = pickedFile;
           });
         }
       }
@@ -130,6 +115,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final newNickname = _nicknameController.text.trim();
     final newStatusMsg = _statusMessageController.text.trim();
 
+    final user = supabase.auth.currentUser;
+    if (user == null) {
+      showErrorDialog(context, '로그인이 필요합니다.');
+      Navigator.pop(context);
+      return;
+    }
+
     bool changed = false;
     Map<String, String> updatedFields = {};
 
@@ -142,8 +134,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
       updatedFields["status_message"] = newStatusMsg;
       changed = true;
     }
-    if (_profileImageFile != null) {
-      // 이미지가 선택되었으면 변경된 것으로 간주
+    if (_avatarImageFile != null) {
+      final String fullPath = await supabase.storage.from('avatars').update(
+            'public/${user.id}.png',
+            File(_avatarImageFile!.path),
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+          );
+      updatedFields["avatar_url"] = fullPath;
       changed = true;
     }
 
@@ -155,77 +152,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return;
     }
 
-    try {
-      final token = await ApiClient().getToken();
-      var responsevalidate = await ApiClient().validateToken();
-      final userId = responsevalidate["user_id"];
-
-      // PUT 요청을 보낼 URL 구성 (userinfo/{user_id})
-      final url = '${ApiConfig.userinfo}/$userId';
-      final uri = Uri.parse(url);
-
-      // Authorization 헤더 설정
-      Map<String, String> headers = {
-        "Authorization": "Bearer $token",
-      };
-
-      // 항상 MultipartRequest 사용하되, 메서드를 PUT으로 변경
-      var request = http.MultipartRequest("PUT", uri);
-      request.headers.addAll(headers);
-      updatedFields.forEach((key, value) {
-        request.fields[key] = value;
-      });
-
-      if (_profileImageFile != null) {
-        if (kIsWeb) {
-          // 웹: 파일의 바이트 데이터를 읽어서 업로드
-          final bytes = await _profileImageFile!.readAsBytes();
-          request.files.add(
-            http.MultipartFile.fromBytes(
-              "file",
-              bytes,
-              filename: _profileImageFile!.name,
-            ),
-          );
-        } else {
-          // 모바일/데스크톱: 파일 경로를 이용해 업로드
-          request.files.add(
-            await http.MultipartFile.fromPath("file", _profileImageFile!.path),
-          );
-        }
-      }
-
-      var response = await request.send();
-
-      if (response.statusCode == 200) {
-        // 응답 데이터 읽기
-        final responseData = await response.stream.bytesToString();
-        final jsonData = jsonDecode(responseData);
-
-        if (jsonData['success'] == true) {
-          // 성공 메시지 표시
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('프로필이 성공적으로 업데이트되었습니다.'),
-              backgroundColor: Color(0xFF65558F),
-            ),
-          );
-          // 결과 값을 전달하지 않고 단순히 이전 화면으로 돌아갑니다
-          Navigator.pop(context);
-        } else {
-          showErrorDialog(
-              context, '프로필 업데이트 실패: ${jsonData['message'] ?? '알 수 없는 오류'}');
-        }
-      } else {
-        showErrorDialog(context, '프로필 업데이트 실패: ${response.statusCode}');
-      }
-    } catch (e) {
-      showErrorDialog(context, '프로필 업데이트 중 오류 발생: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    final response =
+        await supabase.from('userinfo').update(updatedFields).eq('id', user.id);
   }
 
   @override
@@ -261,19 +189,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               ),
                             ),
                             child: ClipOval(
-                              child: _profileImageFile != null
+                              child: _avatarImageFile != null
                                   ? kIsWeb
                                       ? Image.memory(
-                                          _profileImageBytes!,
+                                          _avatarImageBytes!,
                                           fit: BoxFit.cover,
                                         )
                                       : Image.file(
                                           // XFile의 경로를 사용하여 File 객체 생성
-                                          File(_profileImageFile!.path),
+                                          File(_avatarImageFile!.path),
                                           fit: BoxFit.cover,
                                         )
                                   : Image.network(
-                                      _profileImageUrl,
+                                      _avatarImageUrl,
                                       fit: BoxFit.cover,
                                       errorBuilder:
                                           (context, error, stackTrace) {

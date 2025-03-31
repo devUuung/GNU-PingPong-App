@@ -1,11 +1,11 @@
 // lib/screens/games.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_app/services/index.dart';
 import 'package:provider/provider.dart';
-import '../providers/games_info_provider.dart';
-import '../providers/star_users_info_provider.dart';
 import '../widgets/bottom_bar.dart';
 import 'find_user.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+final supabase = Supabase.instance.client;
 
 class GamesPage extends StatefulWidget {
   const GamesPage({Key? key}) : super(key: key);
@@ -19,29 +19,6 @@ class _GamesPageState extends State<GamesPage> {
   final List<String> group1 = ['전체', '내 경기', '즐겨찾기'];
   String selectedFilter = '전체'; // 초기값을 "전체"로 설정
   int? currentUserId; // 현재 사용자 ID 저장
-
-  @override
-  void initState() {
-    super.initState();
-    // Provider를 통해 경기 기록 데이터를 가져옵니다.
-    Future.microtask(() async {
-      // 현재 사용자 ID 가져오기
-      final tokenData = await ApiClient().validateToken();
-      if (tokenData['isValid'] && tokenData['user_id'] != null) {
-        setState(() {
-          currentUserId = tokenData['user_id'];
-        });
-      }
-
-      // 경기 기록 가져오기
-      Provider.of<GamesInfoProvider>(context, listen: false)
-          .fetchGamesInfo(context);
-
-      // 즐겨찾기 사용자 목록 로드
-      Provider.of<StarUsersInfoProvider>(context, listen: false)
-          .loadStarUsers();
-    });
-  }
 
   // 필터에 따라 게임 목록 필터링
   List<dynamic> filterGames(
@@ -88,15 +65,20 @@ class _GamesPageState extends State<GamesPage> {
             ),
           ],
         ),
-        body: Consumer2<GamesInfoProvider, StarUsersInfoProvider>(
-          builder: (context, gamesProvider, starUsersProvider, child) {
-            if (gamesProvider.isLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final allGames = gamesProvider.games ?? [];
-            final starUsers = starUsersProvider.starUsers;
+        body: FutureBuilder(
+          future: Future.wait([
+            supabase.from('game').select('*'),
+            supabase
+                .from('userinfo')
+                .select('star_users')
+                .eq('id', supabase.auth.currentUser!.id)
+          ]),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) return Text('Error: ${snapshot.error}');
+            if (!snapshot.hasData) return const CircularProgressIndicator();
 
-            // 필터에 따라 게임 목록 필터링
+            final allGames = snapshot.data![0] as List;
+            final starUsers = snapshot.data![1] as List;
             final filteredGames =
                 filterGames(allGames, selectedFilter, starUsers);
 
@@ -291,13 +273,6 @@ class _GamesPageState extends State<GamesPage> {
         padding: const EdgeInsets.only(right: 20),
         child: const Icon(Icons.delete, color: Colors.white),
       ),
-      onDismissed: (direction) {
-        Provider.of<GamesInfoProvider>(context, listen: false)
-            .removeGameRecord(int.parse(id));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$id 경기 기록이 삭제되었습니다.')),
-        );
-      },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(

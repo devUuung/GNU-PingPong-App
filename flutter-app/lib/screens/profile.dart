@@ -1,17 +1,13 @@
 // lib/screens/settings.dart
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/api_config.dart';
 import 'package:flutter_app/screens/change_password.dart';
-import 'package:flutter_app/services/api_client.dart';
 import 'package:flutter_app/widgets/app_bar.dart';
 import 'package:flutter_app/widgets/bottom_bar.dart';
 import 'package:flutter_app/screens/profile_edit.dart';
-import 'package:flutter_app/dialog.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:provider/provider.dart';
-import 'package:flutter_app/providers/users_info_provider.dart';
-import 'package:flutter_app/screens/login.dart';
+import '../utils/dialog_utils.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+final supabase = Supabase.instance.client;
 
 class MyInfoPage extends StatefulWidget {
   const MyInfoPage({Key? key}) : super(key: key);
@@ -21,23 +17,41 @@ class MyInfoPage extends StatefulWidget {
 }
 
 class _MyInfoPageState extends State<MyInfoPage> {
-  // 모집공고 알림 토글 초기 상태
   bool _alarmEnabled = true;
-
-  // 기본 프로필 이미지 URL
-  final String _defaultProfileImageUrl =
-      '${ApiConfig.baseUrl}/static/default_profile.png';
+  bool _isLoading = true;
+  Map<String, dynamic>? _userInfo;
 
   @override
   void initState() {
     super.initState();
-    // 화면이 처음 로드될 때 사용자 정보를 가져옵니다
-    // BuildContext를 전달하지 않고 Provider 호출
-    Future.microtask(() {
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final response = await supabase
+          .from('userinfo')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
       if (mounted) {
-        Provider.of<UsersInfoProvider>(context, listen: false).fetchUserInfo();
+        setState(() {
+          _userInfo = response;
+          _isLoading = false;
+        });
       }
-    });
+    } catch (e) {
+      print('사용자 정보 로드 중 오류: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _onChangePassword(BuildContext context) {
@@ -52,27 +66,10 @@ class _MyInfoPageState extends State<MyInfoPage> {
       context,
       MaterialPageRoute(builder: (context) => const EditProfilePage()),
     ).then((_) {
-      // 프로필 수정 후 돌아오면 사용자 정보 다시 불러오기
-      // BuildContext를 전달하지 않고 Provider 호출
       if (mounted) {
-        Future.microtask(() {
-          Provider.of<UsersInfoProvider>(context, listen: false)
-              .fetchUserInfo();
-        });
+        _loadUserInfo();
       }
     });
-  }
-
-  // JWT 및 사용자 정보 삭제 기능
-  Future<void> _deleteJWT() async {
-    await ApiClient().deleteToken();
-
-    // 삭제 완료 후 다이얼로그로 알림
-    showErrorDialog(context, 'JWT 토큰과 사용자 정보가 삭제되었습니다. 자동 로그인이 비활성화되었습니다.');
-
-    // 로그아웃 처리 후 로그인 화면으로 이동
-    Navigator.pushReplacement(
-        context, MaterialPageRoute(builder: (context) => LoginPage()));
   }
 
   @override
@@ -82,102 +79,59 @@ class _MyInfoPageState extends State<MyInfoPage> {
         currentPage: "settings",
         showNotificationIcon: false,
       ),
-      body: Consumer<UsersInfoProvider>(
-        builder: (context, usersInfoProvider, child) {
-          // 로딩 중일 때 로딩 인디케이터 표시
-          if (usersInfoProvider.isLoading) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('사용자 정보를 불러오는 중...'),
-                ],
-              ),
-            );
-          }
-
-          // 사용자 정보가 없을 때 메시지 표시
-          final userInfo = usersInfoProvider.userInfo;
-          if (userInfo == null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                  const SizedBox(height: 16),
-                  const Text('사용자 정보를 불러올 수 없습니다.'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      // BuildContext를 전달하지 않고 Provider 호출
-                      Provider.of<UsersInfoProvider>(context, listen: false)
-                          .fetchUserInfo();
-                    },
-                    child: const Text('다시 시도'),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _userInfo == null
+              ? const Center(child: Text('사용자 정보를 불러올 수 없습니다.'))
+              : SingleChildScrollView(
+                  child: Container(
+                    width: double.infinity,
+                    color: const Color(0xFFFEF7FF),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ProfileHeader(
+                          userName: _userInfo!['username'] ?? 'None',
+                          profileImageUrl: _userInfo!['avatar_url'] ?? '',
+                          statusMessage: _userInfo!['status_message'] ?? 'None',
+                        ),
+                        const SizedBox(height: 20),
+                        InfoRow(label: '전공', value: _userInfo!['department']),
+                        InfoRow(
+                            label: '학번', value: '${_userInfo!['student_id']}'),
+                        InfoRow(
+                            label: '부수 / 승점',
+                            value:
+                                '${_userInfo!['rank']}부 / ${_userInfo!['custom_point']}'),
+                        SettingsListItem(
+                          title: '비밀번호 재설정',
+                          onTap: () => _onChangePassword(context),
+                        ),
+                        SettingsListItem(
+                          title: '프로필 수정',
+                          onTap: () => _onEditProfile(context),
+                        ),
+                        SettingsListItem(
+                          title: '모집공고 알람 듣기(미구현)',
+                          isToggle: true,
+                          toggleValue: _alarmEnabled,
+                          onToggleChanged: (bool val) {
+                            setState(() {
+                              _alarmEnabled = val;
+                            });
+                            debugPrint('모집공고 알림 설정: $_alarmEnabled');
+                          },
+                        ),
+                        SettingsListItem(
+                          title: '로그아웃',
+                          onTap: () => supabase.auth.signOut(),
+                        ),
+                        const SettingsListItem(title: '그 외 항목2'),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-            );
-          }
-
-          // 프로필 이미지 URL 가져오기 (없으면 기본 이미지 사용)
-          final String profileImageUrl =
-              userInfo.profileImageUrl ?? _defaultProfileImageUrl;
-
-          return SingleChildScrollView(
-            child: Container(
-              width: double.infinity,
-              color: const Color(0xFFFEF7FF),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ProfileHeader(
-                    userName: userInfo.username ?? 'None',
-                    profileImageUrl: profileImageUrl,
-                    statusMessage: userInfo.statusMessage ?? 'None',
-                  ),
-                  const SizedBox(height: 20),
-                  // 사용자 기본 정보 (예시)
-                  InfoRow(label: '전공', value: userInfo.department),
-                  InfoRow(label: '학번', value: '${userInfo.studentId}'),
-                  InfoRow(
-                      label: '부수 / 승점',
-                      value: '${userInfo.rank}부 / ${userInfo.customPoint}'),
-                  // 메뉴 항목들
-                  SettingsListItem(
-                    title: '비밀번호 재설정',
-                    onTap: () => _onChangePassword(context),
-                  ),
-                  SettingsListItem(
-                    title: '프로필 수정',
-                    onTap: () => _onEditProfile(context),
-                  ),
-                  SettingsListItem(
-                    title: '모집공고 알람 듣기(미구현)',
-                    isToggle: true,
-                    toggleValue: _alarmEnabled,
-                    onToggleChanged: (bool val) {
-                      setState(() {
-                        _alarmEnabled = val;
-                      });
-                      debugPrint('모집공고 알림 설정: $_alarmEnabled');
-                    },
-                  ),
-                  // JWT 및 사용자 정보 삭제 기능 항목
-                  SettingsListItem(
-                    title: '로그아웃',
-                    onTap: () => _deleteJWT(),
-                  ),
-                  const SettingsListItem(title: '그 외 항목2'),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+                ),
       bottomNavigationBar:
           const CommonBottomNavigationBar(currentPage: "settings"),
     );

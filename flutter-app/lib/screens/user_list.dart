@@ -1,10 +1,9 @@
 // lib/screens/user_list.dart
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter_app/widgets/bottom_bar.dart';
-import 'package:flutter_app/screens/home.dart'; // 홈 화면
-import 'package:flutter_app/providers/users_info_provider.dart';
-import 'package:flutter_app/providers/star_users_info_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+final supabase = Supabase.instance.client;
 
 class UserListPage extends StatefulWidget {
   const UserListPage({Key? key}) : super(key: key);
@@ -16,16 +15,6 @@ class UserListPage extends StatefulWidget {
 class _UserListPageState extends State<UserListPage> {
   // 현재 선택된 필터 (기본값: '점수')
   String selectedFilter = '점수';
-
-  @override
-  void initState() {
-    super.initState();
-    // Provider를 통해 모든 유저 정보를 불러옵니다.
-    Future.microtask(() {
-      Provider.of<UsersInfoProvider>(context, listen: false)
-          .fetchUsersInfo(context);
-    });
-  }
 
   /// 선택된 필터에 따라 유저 객체에서 표시할 값을 반환합니다.
   String getUserValue(Map<String, dynamic> user) {
@@ -231,61 +220,21 @@ class _UserListPageState extends State<UserListPage> {
           title: const Text('명단'),
           automaticallyImplyLeading: false,
         ),
-        // Provider를 이용하여 유저 정보를 불러옴
-        body: Consumer<UsersInfoProvider>(
-          builder: (context, usersProvider, child) {
-            if (usersProvider.isLoading) {
+        body: FutureBuilder(
+          future: supabase.from('userinfo').select('*'),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) return Text('Error: ${snapshot.error}');
+            if (!snapshot.hasData)
               return const Center(child: CircularProgressIndicator());
-            }
 
-            // 오류 메시지가 있는 경우 표시
-            if (usersProvider.error != null) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: Colors.red,
-                        size: 60,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        usersProvider.error!,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          color: Colors.red,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            // Provider에서 불러온 유저 목록 (캐시 혹은 API에서 불러온 데이터)
-            var users = usersProvider.users ?? [];
-
-            // 현재 로그인한 사용자가 있고, 목록에 없는 경우 추가
-            if (usersProvider.currentUser != null) {
-              bool containsCurrentUser = users.any(
-                  (user) => user.userId == usersProvider.currentUser!.userId);
-
-              if (!containsCurrentUser) {
-                users = [...users, usersProvider.currentUser!];
-              }
-            }
-
+            final users = snapshot.data as List;
             return SingleChildScrollView(
               child: Center(
                 child: Container(
                   width: MediaQuery.of(context).size.width,
                   height: MediaQuery.of(context).size.height,
                   decoration: ShapeDecoration(
-                    color: const Color(0xFFFEF7FF), // 연분홍 배경
+                    color: const Color(0xFFFEF7FF),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
                     ),
@@ -294,9 +243,7 @@ class _UserListPageState extends State<UserListPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 16),
-                      // 필터 버튼 영역 (예: 점수, 게임 수, 승리 수 등)
                       _buildFilterRow(),
-                      // 실제 사용자 명단 리스트
                       Expanded(
                         child: users.isEmpty
                             ? const Center(
@@ -314,8 +261,7 @@ class _UserListPageState extends State<UserListPage> {
                                 padding: const EdgeInsets.only(top: 8),
                                 itemCount: users.length,
                                 itemBuilder: (context, index) {
-                                  final user = users[index];
-                                  return _buildUserItem(user.toJson());
+                                  return _buildUserItem(users[index]);
                                 },
                               ),
                       ),
@@ -385,11 +331,9 @@ class _UserListPageState extends State<UserListPage> {
   Widget _buildUserItem(Map<String, dynamic> user) {
     final String name = user['username'] ?? '';
     final String value = getUserValue(user);
-    // StarUsersInfoProvider를 통해 별표 여부를 확인합니다.
-    final starUsersProvider = Provider.of<StarUsersInfoProvider>(context);
-    final bool isStarred = starUsersProvider.isStarred(user);
-    // 프로필 이미지 URL 가져오기
     final String profileImageUrl = user['profile_image_url'] ?? '';
+    final bool isStarred =
+        user['star_users']?.contains(supabase.auth.currentUser?.id) ?? false;
 
     return InkWell(
       onTap: () => _showUserProfile(context, user),
@@ -467,12 +411,20 @@ class _UserListPageState extends State<UserListPage> {
                 isStarred ? Icons.star : Icons.star_border,
                 color: isStarred ? Colors.amber : Colors.grey,
               ),
-              onPressed: () {
-                // 별표 버튼 클릭 시, StarUsersInfoProvider에 유저 토글 (추가/제거)
-                starUsersProvider.toggleStarUser(user);
-                // 변경 사항 반영을 위해 setState() 호출 (Provider 내부에서 notifyListeners() 호출 시 자동 업데이트 될 수도 있음)
-                setState(() {});
-                print('$name 별표 토글');
+              onPressed: () async {
+                final currentUser = supabase.auth.currentUser;
+                if (currentUser == null) return;
+
+                final starUsers = List<String>.from(user['star_users'] ?? []);
+                if (isStarred) {
+                  starUsers.remove(currentUser.id);
+                } else {
+                  starUsers.add(currentUser.id);
+                }
+
+                await supabase
+                    .from('userinfo')
+                    .update({'star_users': starUsers}).eq('id', user['id']);
               },
             ),
           ],

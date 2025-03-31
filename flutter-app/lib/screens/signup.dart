@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import '../services/user_service.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import '../utils/dialog_utils.dart';
 import '../widgets/common/loading_indicator.dart';
-import 'package:device_info_plus/device_info_plus.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../screens/home.dart';
 import 'dart:io';
+
+final supabase = Supabase.instance.client;
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({Key? key}) : super(key: key);
@@ -19,10 +22,8 @@ class _SignUpPageState extends State<SignUpPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _departmentController = TextEditingController();
-  final UserService _userService = UserService();
   bool _isLoading = false;
 
   @override
@@ -31,7 +32,6 @@ class _SignUpPageState extends State<SignUpPage> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _nameController.dispose();
-    _emailController.dispose();
     _phoneController.dispose();
     _departmentController.dispose();
     super.dispose();
@@ -45,50 +45,43 @@ class _SignUpPageState extends State<SignUpPage> {
     setState(() {
       _isLoading = true;
     });
-    String deviceId = '';
 
-    if (kIsWeb) {
-      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-      WebBrowserInfo info = await deviceInfo.webBrowserInfo;
-      deviceId = info.userAgent ?? '';
-    } else if (Platform.isAndroid) {
-      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-      AndroidDeviceInfo info = await deviceInfo.androidInfo;
-      deviceId = info.serialNumber;
-    } else if (Platform.isIOS) {
-      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-      IosDeviceInfo info = await deviceInfo.iosInfo;
-      deviceId = info.identifierForVendor ?? '';
-    } else {
-      deviceId = '';
-    }
+    final AuthResponse res = await supabase.auth.signUp(
+      email: '${_studentIdController.text.trim()}@gnu.ac.kr',
+      password: _passwordController.text.trim(),
+      data: {
+        'username': _nameController.text.trim(),
+        'department': _departmentController.text.trim(),
+        'student_id': _studentIdController.text.trim(),
+        'phone': _phoneController.text.trim(),
+      },
+    );
+
+    // Load the default avatar from assets and write to a temporary file
+    final byteData = await rootBundle.load('lib/assets/default_avatar.png');
+    final tempDir = await getTemporaryDirectory();
+    final avatarPath = '${tempDir.path}/default_avatar.png';
+    final avatarFile = File(avatarPath);
+    await avatarFile.writeAsBytes(byteData.buffer.asUint8List());
+
+    await supabase.storage.from('avatars').upload(
+          'public/${res.user!.id}.png',
+          avatarFile,
+          fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+        );
 
     try {
-      final response = await _userService.signup(
-        _nameController.text.trim(),
-        _phoneController.text.trim(),
-        _passwordController.text.trim(),
-        _studentIdController.text.trim(),
-        deviceId,
-        _departmentController.text.trim(),
-      );
-
-      if (response['success'] == true) {
-        showSuccessDialog(
-          context,
-          message: '회원가입이 완료되었습니다. 로그인 화면으로 이동합니다.',
-          onDismiss: () => Navigator.pop(context),
-        );
-      } else {
-        showErrorDialog(context, response['message'] ?? '회원가입에 실패했습니다.');
-      }
+      await supabase.from('userinfo').update({
+        'avatar_url': 'public/${res.user!.id}.png',
+      }).eq('id', res.user!.id);
     } catch (e) {
-      showErrorDialog(context, '회원가입 중 오류가 발생했습니다: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      print('Update error: $e');
     }
+
+    showSuccessDialog(context,
+        message: '회원가입이 완료되었습니다.',
+        onDismiss: () => Navigator.push(
+            context, MaterialPageRoute(builder: (context) => HomePage())));
   }
 
   @override

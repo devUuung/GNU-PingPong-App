@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_app/services/index.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:flutter_app/api_config.dart';
-import 'package:flutter_app/dialog.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_app/utils/dialog_utils.dart';
+
+final supabase = Supabase.instance.client;
 
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({Key? key}) : super(key: key);
@@ -31,13 +30,13 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       final newPwd = _newPasswordController.text.trim();
 
       if (oldPwd.isEmpty || newPwd.isEmpty) {
-        _showMessage('비밀번호를 입력해주세요.');
+        showErrorDialog(context, '비밀번호를 입력해주세요.');
         return;
       }
 
       // 비밀번호 유효성 검사
       if (newPwd.length < 6) {
-        _showMessage('새 비밀번호는 최소 6자 이상이어야 합니다.');
+        showErrorDialog(context, '새 비밀번호는 최소 6자 이상이어야 합니다.');
         return;
       }
 
@@ -45,82 +44,16 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         _isLoading = true;
       });
 
-      try {
-        // 토큰 유효성 검사
-        final tokenData = await ApiClient().validateToken();
-        if (!tokenData['isValid']) {
-          if (!mounted) return;
-          _showMessage('인증에 실패했습니다. 다시 로그인해주세요.');
-          return;
-        }
-
-        final userId = tokenData['user_id'];
-
-        // 비밀번호 변경 API 요청
-        final url = '${ApiConfig.userinfo}/$userId/change-password';
-
-        // 토큰 가져오기
-        final token = await ApiClient().getToken();
-
-        final client = http.Client();
-        try {
-          final response = await client
-              .post(
-                Uri.parse(url),
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': 'Bearer $token',
-                },
-                body: json.encode({
-                  'old_password': oldPwd,
-                  'new_password': newPwd,
-                }),
-              )
-              .timeout(const Duration(seconds: 15));
-
-          if (response.statusCode == 200) {
-            final data = json.decode(response.body);
-            if (data['success'] == true) {
-              _showMessage('비밀번호가 성공적으로 변경되었습니다.');
-              // 성공 후 화면 닫기
-              Future.delayed(const Duration(seconds: 1), () {
-                Navigator.pop(context);
-              });
-            } else {
-              _showMessage(data['message'] ?? '비밀번호 변경에 실패했습니다.');
-            }
-          } else if (response.statusCode == 401) {
-            _showMessage('현재 비밀번호가 일치하지 않습니다.');
-          } else {
-            _showMessage('서버 오류: ${response.statusCode}');
-          }
-        } finally {
-          client.close();
-        }
-      } catch (e) {
-        _showMessage('비밀번호 변경 중 오류가 발생했습니다: $e');
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
+      final User? user = supabase.auth.currentUser;
+      if (user == null) {
+        showErrorDialog(context, '사용자가 로그인되어 있지 않습니다.');
+        return;
       }
-    }
-  }
 
-  void _showMessage(String message) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('알림'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('확인'),
-          ),
-        ],
-      ),
-    );
+      await supabase.auth.updateUser(
+        UserAttributes(password: newPwd),
+      );
+    }
   }
 
   @override
