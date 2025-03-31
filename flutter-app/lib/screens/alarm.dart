@@ -5,7 +5,7 @@ class AlarmPage extends StatelessWidget {
   const AlarmPage({super.key});
 
   /// 예시용 가짜 데이터
-  /// 실제로는 API 등에서 받아온 알림 목록을 List<AlarmData> 형태로 주입
+  /// 실제로는 API 등에서 받아온 알림 목록을 `List<AlarmData>` 형태로 주입
   final List<AlarmData> mockAlarms = const [
     AlarmData(
       title: '회원가입 기능 ON',
