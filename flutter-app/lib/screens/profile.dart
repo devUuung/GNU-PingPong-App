@@ -5,6 +5,9 @@ import 'package:flutter_app/widgets/app_bar.dart';
 import 'package:flutter_app/widgets/bottom_bar.dart';
 import 'package:flutter_app/screens/profile_edit.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
+import '../utils/dialog_utils.dart';
+import '../widgets/common/loading_indicator.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -27,29 +30,33 @@ class _MyInfoPageState extends State<MyInfoPage> {
   }
 
   Future<void> _loadUserInfo() async {
-    final user = supabase.auth.currentUser;
-    if (user == null) return;
+    if (!mounted) return;
 
     try {
+      final User? user = supabase.auth.currentUser;
+      if (user == null) {
+        if (!mounted) return;
+        showErrorDialog(context, '사용자가 로그인되어 있지 않습니다.');
+        return;
+      }
+
       final response = await supabase
           .from('userinfo')
           .select('*')
           .eq('id', user.id)
           .single();
 
-      if (mounted) {
-        setState(() {
-          _userInfo = response;
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _userInfo = response;
+        _isLoading = false;
+      });
     } catch (e) {
-      print('사용자 정보 로드 중 오류: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      showErrorDialog(context, '사용자 정보를 불러오는 중 오류가 발생했습니다: $e');
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -79,7 +86,7 @@ class _MyInfoPageState extends State<MyInfoPage> {
         showNotificationIcon: false,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingIndicator(message: '프로필 정보를 불러오는 중...')
           : _userInfo == null
               ? const Center(child: Text('사용자 정보를 불러올 수 없습니다.'))
               : SingleChildScrollView(
@@ -124,7 +131,7 @@ class _MyInfoPageState extends State<MyInfoPage> {
                         ),
                         SettingsListItem(
                           title: '로그아웃',
-                          onTap: () => supabase.auth.signOut(),
+                          onTap: () => _signOut(),
                         ),
                         const SettingsListItem(title: '그 외 항목2'),
                       ],
@@ -134,6 +141,19 @@ class _MyInfoPageState extends State<MyInfoPage> {
       bottomNavigationBar:
           const CommonBottomNavigationBar(currentPage: "settings"),
     );
+  }
+
+  Future<void> _signOut() async {
+    if (!mounted) return;
+
+    try {
+      await supabase.auth.signOut();
+      if (!mounted) return;
+      Navigator.of(context).pushReplacementNamed('/login');
+    } catch (e) {
+      if (!mounted) return;
+      showErrorDialog(context, '로그아웃 중 오류가 발생했습니다: $e');
+    }
   }
 }
 

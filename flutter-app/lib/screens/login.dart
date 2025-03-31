@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'home.dart';
 import 'signup.dart';
 import '../utils/dialog_utils.dart';
@@ -8,7 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 final supabase = Supabase.instance.client;
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -29,21 +30,29 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _checkAutoLogin() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
-    await supabase.auth.signOut();
 
-    final session = await supabase.auth.currentSession;
+    try {
+      await supabase.auth.signOut();
+      final session = await supabase.auth.currentSession;
 
-    if (session != null) {
-      _goHome();
+      if (session != null && mounted) {
+        _goHome();
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-
-    _isLoading = false;
   }
 
   Future<void> _login() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
@@ -63,26 +72,30 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (response.session == null) {
+        if (!mounted) return;
         showErrorDialog(context, '로그인 정보가 틀렸습니다.');
-        _isLoading = false;
         return;
       }
 
-      _goHome();
+      if (mounted) {
+        _goHome();
+      }
     } catch (e) {
+      if (!mounted) return;
       showErrorDialog(context, '로그인 중 오류 발생: $e');
-      _isLoading = false;
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   /// HomePage로 이동 (pushReplacement)
   void _goHome() {
     Navigator.pushReplacement(
-        context, MaterialPageRoute(builder: (context) => HomePage()));
+        context, MaterialPageRoute(builder: (context) => const HomePage()));
   }
 
   @override

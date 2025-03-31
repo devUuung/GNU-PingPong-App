@@ -1,20 +1,50 @@
 // lib/screens/user_list.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_app/widgets/bottom_bar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/dialog_utils.dart';
+import '../widgets/common/loading_indicator.dart';
 
 final supabase = Supabase.instance.client;
 
 class UserListPage extends StatefulWidget {
-  const UserListPage({Key? key}) : super(key: key);
+  const UserListPage({super.key});
 
   @override
   State<UserListPage> createState() => _UserListPageState();
 }
 
 class _UserListPageState extends State<UserListPage> {
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _users = [];
   // 현재 선택된 필터 (기본값: '점수')
   String selectedFilter = '점수';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    if (!mounted) return;
+
+    try {
+      final response = await supabase.from('profiles').select();
+      if (!mounted) return;
+      setState(() {
+        _users = List<Map<String, dynamic>>.from(response);
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      showErrorDialog(context, '사용자 목록을 불러오는 중 오류가 발생했습니다: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   /// 선택된 필터에 따라 유저 객체에서 표시할 값을 반환합니다.
   String getUserValue(Map<String, dynamic> user) {
@@ -220,58 +250,50 @@ class _UserListPageState extends State<UserListPage> {
           title: const Text('명단'),
           automaticallyImplyLeading: false,
         ),
-        body: FutureBuilder(
-          future: supabase.from('userinfo').select('*'),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) return Text('Error: ${snapshot.error}');
-            if (!snapshot.hasData)
-              return const Center(child: CircularProgressIndicator());
-
-            final users = snapshot.data as List;
-            return SingleChildScrollView(
-              child: Center(
-                child: Container(
-                  width: MediaQuery.of(context).size.width,
-                  height: MediaQuery.of(context).size.height,
-                  decoration: ShapeDecoration(
-                    color: const Color(0xFFFEF7FF),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 16),
-                      _buildFilterRow(),
-                      Expanded(
-                        child: users.isEmpty
-                            ? const Center(
-                                child: Text(
-                                  '사용자 목록이 비어 있습니다.',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: Color(0xFF49454F),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              )
-                            : ListView.builder(
-                                padding: const EdgeInsets.only(top: 8),
-                                itemCount: users.length,
-                                itemBuilder: (context, index) {
-                                  return _buildUserItem(users[index]);
-                                },
-                              ),
+        body: _isLoading
+            ? const LoadingIndicator(message: '사용자 목록을 불러오는 중...')
+            : SingleChildScrollView(
+                child: Center(
+                  child: Container(
+                    width: MediaQuery.of(context).size.width,
+                    height: MediaQuery.of(context).size.height,
+                    decoration: ShapeDecoration(
+                      color: const Color(0xFFFEF7FF),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
                       ),
-                    ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 16),
+                        _buildFilterRow(),
+                        Expanded(
+                          child: _users.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    '사용자 목록이 비어 있습니다.',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: Color(0xFF49454F),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                )
+                              : ListView.builder(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  itemCount: _users.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildUserItem(_users[index]);
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            );
-          },
-        ),
         bottomNavigationBar: const CommonBottomNavigationBar(
           currentPage: "userList",
         ),
@@ -303,7 +325,7 @@ class _UserListPageState extends State<UserListPage> {
         setState(() {
           selectedFilter = label;
           // 필터 변경 시 원하는 추가 로직 수행
-          print('필터 "$label" 클릭됨');
+          debugPrint('필터 "$label" 클릭됨');
         });
       },
       child: Container(

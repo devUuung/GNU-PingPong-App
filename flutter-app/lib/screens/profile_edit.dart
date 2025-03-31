@@ -5,6 +5,7 @@ import 'package:flutter_app/widgets/app_bar.dart';
 import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/dialog_utils.dart';
+import '../widgets/common/loading_indicator.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -43,19 +44,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   // 사용자 정보 로드
   Future<void> _loadUserInfo() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
     });
 
     final user = supabase.auth.currentUser;
     if (user == null) {
+      if (!mounted) return;
       showErrorDialog(context, '로그인이 필요합니다.');
-      Navigator.pop(context);
       return;
     }
     final userInfo =
         await supabase.from('userinfo').select('*').eq('id', user.id).single();
 
+    if (!mounted) return;
     setState(() {
       _initialNickname = userInfo['username'] ?? '';
       _initialStatusMsg = userInfo['status_message'] ?? '';
@@ -108,6 +112,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _onSaveProfile() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
     });
@@ -117,8 +123,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     final user = supabase.auth.currentUser;
     if (user == null) {
+      if (!mounted) return;
       showErrorDialog(context, '로그인이 필요합니다.');
-      Navigator.pop(context);
       return;
     }
 
@@ -154,6 +160,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     final response =
         await supabase.from('userinfo').update(updatedFields).eq('id', user.id);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('프로필이 수정되었습니다.')),
+    );
+    Navigator.pop(context);
   }
 
   @override

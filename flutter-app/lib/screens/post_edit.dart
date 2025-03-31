@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/dialog_utils.dart';
+import '../widgets/common/loading_indicator.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -30,6 +31,7 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
   bool _isLoading = true;
   Map<String, dynamic>? _postData;
   int? _currentUserId;
+  final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -135,40 +137,54 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
 
   // 모집공고 수정 요청
   Future<void> _updatePost() async {
-    setState(() {
-      _isLoading = true;
-    });
+    if (!mounted) return;
 
-    try {
-      final response = await supabase
-          .from('post')
-          .update({
-            'title': _titleController.text.trim(),
-            'place': _locationController.text.trim(),
-            'max_user': int.parse(_maxUserController.text.trim()),
-            'content': _contentController.text.trim(),
-            'created_at': _selectedDateTime!.toIso8601String(),
-          })
-          .eq('id', widget.postId)
-          .eq('user_id', _currentUserId.toString());
+    if (_formKey.currentState!.validate()) {
+      final title = _titleController.text.trim();
+      final content = _contentController.text.trim();
+      final location = _locationController.text.trim();
+      final maxUser = _maxUserController.text.trim();
 
-      if (response.isNotEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('모집공고가 수정되었습니다.')),
-          );
-          Navigator.pop(context);
-        }
-      } else {
-        showErrorDialog(context, '모집공고 수정에 실패했습니다.');
+      if (title.isEmpty ||
+          content.isEmpty ||
+          location.isEmpty ||
+          maxUser.isEmpty) {
+        showErrorDialog(context, '모든 필드를 입력해주세요.');
+        return;
       }
-    } catch (e) {
-      showErrorDialog(context, '오류가 발생했습니다: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        await supabase
+            .from('post')
+            .update({
+              'title': title,
+              'place': location,
+              'max_user': int.parse(maxUser),
+              'content': content,
+              'created_at': _selectedDateTime!.toIso8601String(),
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', widget.postId)
+            .eq('user_id', _currentUserId.toString());
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('모집공고가 수정되었습니다.')),
+        );
+        Navigator.pop(context);
+      } catch (e) {
+        if (!mounted) return;
+        showErrorDialog(context, '모집공고 수정 중 오류가 발생했습니다: $e');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
@@ -220,128 +236,131 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
               ? const Center(child: CircularProgressIndicator())
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 제목
-                      const Text(
-                        '제목',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _titleController,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          hintText: '예) 탁구 치실 분 모집합니다',
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 제목
+                        const Text(
+                          '제목',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      // 날짜/시간
-                      const Text(
-                        '날짜 / 시간',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _dateTimePickerController,
-                        readOnly: true, // 직접 입력하지 못하도록 설정
-                        onTap: _pickDateTime, // 탭 시 날짜/시간 선택기 실행
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          hintText: '날짜와 시간을 선택하세요',
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // 장소
-                      const Text(
-                        '장소',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _locationController,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          hintText: '예) 체육관, 동방 등',
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // 최대 인원
-                      const Text(
-                        '최대 인원',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _maxUserController,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly
-                        ], // 숫자만 입력하도록 설정
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          hintText: '예) 4',
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // 내용
-                      const Text(
-                        '내용',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _contentController,
-                        maxLines: 5,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          hintText: '예) 같이 치실 분 자유롭게 신청해주세요 :)',
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      // 수정하기 버튼
-                      Align(
-                        alignment: Alignment.center,
-                        child: ElevatedButton(
-                          onPressed: _isLoading
-                              ? null
-                              : () {
-                                  if (_validateInputs()) {
-                                    _updatePost();
-                                  }
-                                },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF65558F),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 32,
-                              vertical: 14,
-                            ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _titleController,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: '예) 탁구 치실 분 모집합니다',
                           ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text(
-                                  '수정하기',
-                                  style: TextStyle(color: Colors.white),
-                                ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        // 날짜/시간
+                        const Text(
+                          '날짜 / 시간',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _dateTimePickerController,
+                          readOnly: true, // 직접 입력하지 못하도록 설정
+                          onTap: _pickDateTime, // 탭 시 날짜/시간 선택기 실행
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: '날짜와 시간을 선택하세요',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // 장소
+                        const Text(
+                          '장소',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _locationController,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: '예) 체육관, 동방 등',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // 최대 인원
+                        const Text(
+                          '최대 인원',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _maxUserController,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ], // 숫자만 입력하도록 설정
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: '예) 4',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // 내용
+                        const Text(
+                          '내용',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _contentController,
+                          maxLines: 5,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: '예) 같이 치실 분 자유롭게 신청해주세요 :)',
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        // 수정하기 버튼
+                        Align(
+                          alignment: Alignment.center,
+                          child: ElevatedButton(
+                            onPressed: _isLoading
+                                ? null
+                                : () {
+                                    if (_validateInputs()) {
+                                      _updatePost();
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF65558F),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 32,
+                                vertical: 14,
+                              ),
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    '수정하기',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
           // 로딩 오버레이

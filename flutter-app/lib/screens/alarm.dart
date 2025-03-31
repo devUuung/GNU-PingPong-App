@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// 알림 화면 (단순 예시)
+/// 알림 화면
 class AlarmPage extends StatelessWidget {
-  const AlarmPage({Key? key}) : super(key: key);
+  const AlarmPage({super.key});
 
   /// 예시용 가짜 데이터
   /// 실제로는 API 등에서 받아온 알림 목록을 List<AlarmData> 형태로 주입
@@ -55,7 +55,7 @@ class AlarmPage extends StatelessWidget {
   }
 }
 
-/// 알림 데이터 모델 (예시)
+/// 알림 데이터 모델
 class AlarmData {
   final String title;
   final String message;
@@ -66,7 +66,7 @@ class AlarmData {
     required this.title,
     required this.message,
     required this.time,
-    this.highlighted = false, // 필요 시 알림 강조 표시
+    this.highlighted = false,
   });
 }
 
@@ -74,7 +74,7 @@ class AlarmData {
 class AlarmItem extends StatelessWidget {
   final AlarmData alarm;
 
-  const AlarmItem({Key? key, required this.alarm}) : super(key: key);
+  const AlarmItem({super.key, required this.alarm});
 
   @override
   Widget build(BuildContext context) {

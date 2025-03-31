@@ -6,280 +6,139 @@ import 'package:intl/date_symbol_data_local.dart'; // 로케일 데이터 초기
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/dialog_utils.dart';
+import '../widgets/common/loading_indicator.dart';
 
 final supabase = Supabase.instance.client;
 
-class RecruitPostPage extends StatefulWidget {
-  const RecruitPostPage({Key? key}) : super(key: key);
+class PostCreatePage extends StatefulWidget {
+  const PostCreatePage({super.key});
 
   @override
-  State<RecruitPostPage> createState() => _RecruitPostPageState();
+  State<PostCreatePage> createState() => _PostCreatePageState();
 }
 
-class _RecruitPostPageState extends State<RecruitPostPage> {
+class _PostCreatePageState extends State<PostCreatePage> {
   final _titleController = TextEditingController();
-  // 기존 _dateTimeController 대신 날짜/시간 선택을 위한 컨트롤러 사용
-  final TextEditingController _dateTimePickerController =
-      TextEditingController();
-  final _locationController = TextEditingController();
-  final _maxParticipantsController = TextEditingController();
   final _contentController = TextEditingController();
-
-  DateTime? _selectedDateTime; // 날짜와 시간을 함께 관리할 변수
-  bool _isLoading = false; // 로딩 상태 관리
-
-  @override
-  void initState() {
-    super.initState();
-    // 로케일 데이터 초기화
-    initializeDateFormatting('ko_KR');
-  }
+  bool _isLoading = false;
+  final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
     _titleController.dispose();
-    _dateTimePickerController.dispose();
-    _locationController.dispose();
-    _maxParticipantsController.dispose();
     _contentController.dispose();
     super.dispose();
   }
 
-  /// 날짜와 시간을 선택하는 함수
-  Future<void> _pickDateTime() async {
-    // 날짜 선택
-    final DateTime? date = await showDatePicker(
-      context: context,
-      initialDate: _selectedDateTime ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (date == null) return;
+  Future<void> _createPost() async {
+    if (!mounted) return;
 
-    // 시간 선택
-    final TimeOfDay? time = await showTimePicker(
-      context: context,
-      initialTime: _selectedDateTime != null
-          ? TimeOfDay(
-              hour: _selectedDateTime!.hour, minute: _selectedDateTime!.minute)
-          : TimeOfDay.now(),
-    );
-    if (time == null) return;
+    if (_formKey.currentState!.validate()) {
+      final title = _titleController.text.trim();
+      final content = _contentController.text.trim();
 
-    // 날짜와 시간을 결합하여 하나의 DateTime 객체로 만듦
-    setState(() {
-      _selectedDateTime =
-          DateTime(date.year, date.month, date.day, time.hour, time.minute);
-      _dateTimePickerController.text =
-          DateFormat('yyyy-MM-dd HH:mm').format(_selectedDateTime!);
-    });
-  }
+      if (title.isEmpty || content.isEmpty) {
+        showErrorDialog(context, '제목과 내용을 입력해주세요.');
+        return;
+      }
 
-  // 서버에 모집공고 등록 요청을 보내는 함수
-  Future<void> _submitPostToServer() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    final user = supabase.auth.currentUser;
-    if (user == null) {
-      showErrorDialog(context, '로그인이 필요합니다.');
       setState(() {
-        _isLoading = false;
+        _isLoading = true;
       });
 
-      final response = await supabase.from('post').insert({
-        'title': _titleController.text.trim(),
-        'place': _locationController.text.trim(),
-        'max_user': int.parse(_maxParticipantsController.text.trim()),
-        'content': _contentController.text.trim(),
-        'user_id': user?.id,
-      });
+      final User? user = supabase.auth.currentUser;
+      if (user == null) {
+        if (!mounted) return;
+        showErrorDialog(context, '사용자가 로그인되어 있지 않습니다.');
+        return;
+      }
 
-      if (response.isNotEmpty) {
-        showSuccessDialog(context, message: '모집공고가 등록되었습니다.');
-        Navigator.pop(context); // 이전 화면으로 돌아가기
-      } else {
-        showErrorDialog(context, '모집공고 등록에 실패했습니다.');
-        setState(() {
-          _isLoading = false;
+      try {
+        await supabase.from('posts').insert({
+          'title': title,
+          'content': content,
+          'user_id': user.id,
+          'created_at': DateTime.now().toIso8601String(),
         });
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('게시글이 생성되었습니다.')),
+        );
+        Navigator.pop(context);
+      } catch (e) {
+        if (!mounted) return;
+        showErrorDialog(context, '게시글 생성 중 오류가 발생했습니다: $e');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
-  }
-
-  // "등록하기" 버튼 클릭 시 로직
-  void _submitPost() {
-    final title = _titleController.text.trim();
-
-    if (title.isEmpty) {
-      showErrorDialog(context, '제목을 입력해주세요.');
-      return;
-    }
-    if (_selectedDateTime == null) {
-      showErrorDialog(context, '날짜/시간을 선택해주세요.');
-      return;
-    }
-
-    final location = _locationController.text.trim();
-    if (location.isEmpty) {
-      showErrorDialog(context, '장소를 입력해주세요.');
-      return;
-    }
-
-    final maxPeople = _maxParticipantsController.text.trim();
-    if (maxPeople.isEmpty) {
-      showErrorDialog(context, '최대 인원을 입력해주세요.');
-      return;
-    }
-
-    final content = _contentController.text.trim();
-    if (content.isEmpty) {
-      showErrorDialog(context, '내용을 입력해주세요.');
-      return;
-    }
-
-    // 서버에 데이터 전송
-    _submitPostToServer();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CommonAppBar(
-        currentPage: "recruitPost",
-        showNotificationIcon: false,
+      appBar: AppBar(
+        title: const Text('게시글 작성'),
+        backgroundColor: const Color(0xFFFEF7FF),
+        elevation: 2,
       ),
       backgroundColor: const Color(0xFFFEF7FF),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 제목
-                const Text(
-                  '제목',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('제목', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: '제목을 입력하세요.',
                 ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: '예) 탁구 치실 분 모집합니다',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // 날짜/시간 - 텍스트 입력이 아닌 선택기로 구현
-                const Text(
-                  '날짜 / 시간',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _dateTimePickerController,
-                  readOnly: true, // 직접 입력하지 못하도록 설정
-                  onTap: _pickDateTime, // 탭 시 날짜/시간 선택기 실행
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: '날짜와 시간을 선택하세요',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // 장소
-                const Text(
-                  '장소',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _locationController,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: '예) 체육관, 동방 등',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // 최대 인원
-                const Text(
-                  '최대 인원',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _maxParticipantsController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly
-                  ], // 숫자만 입력하도록 설정
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: '예) 4',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // 내용
-                const Text(
-                  '내용',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _contentController,
-                  maxLines: 5,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: '예) 같이 치실 분 자유롭게 신청해주세요 :)',
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // 등록하기 버튼
-                Align(
-                  alignment: Alignment.center,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _submitPost,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF65558F),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 14,
-                      ),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            '등록하기',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // 로딩 오버레이
-          if (_isLoading)
-            Container(
-              color: Colors.black.withOpacity(0.3),
-              child: const Center(
-                child: CircularProgressIndicator(),
               ),
-            ),
-        ],
+              const SizedBox(height: 20),
+              const Text('내용', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _contentController,
+                maxLines: 10,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: '내용을 입력하세요.',
+                ),
+              ),
+              const SizedBox(height: 40),
+              Center(
+                child: _isLoading
+                    ? const CircularProgressIndicator()
+                    : ElevatedButton(
+                        onPressed: _createPost,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24)),
+                          backgroundColor:
+                              const Color.fromRGBO(101, 85, 143, 1),
+                        ),
+                        child: const Text(
+                          '작성',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
       ),
-      bottomNavigationBar:
-          const CommonBottomNavigationBar(currentPage: "recruitPost"),
     );
   }
 }
