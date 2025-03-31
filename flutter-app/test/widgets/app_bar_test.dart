@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/widgets/app_bar.dart';
 import 'package:flutter_app/screens/alarm.dart';
-import 'package:mockito/mockito.dart';
 
 void main() {
   group('CommonAppBar 위젯 테스트', () {

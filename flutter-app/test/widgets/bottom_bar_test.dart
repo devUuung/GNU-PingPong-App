@@ -5,7 +5,6 @@ import 'package:flutter_app/screens/home.dart';
 import 'package:flutter_app/screens/user_list.dart';
 import 'package:flutter_app/screens/games.dart';
 import 'package:flutter_app/screens/profile.dart';
-import 'package:mockito/mockito.dart';
 
 void main() {
   group('CommonBottomNavigationBar 위젯 테스트', () {

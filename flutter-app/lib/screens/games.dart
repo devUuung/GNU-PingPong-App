@@ -1,6 +1,5 @@
 // lib/screens/games.dart
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../widgets/bottom_bar.dart';
 import 'find_user.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
