@@ -21,11 +21,24 @@ class _MyInfoPageState extends State<MyInfoPage> {
   bool _alarmEnabled = true;
   bool _isLoading = true;
   Map<String, dynamic>? _userInfo;
+  bool _hasShownError = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasShownError) {
+      final User? user = supabase.auth.currentUser;
+      if (user == null) {
+        showErrorDialog(context, '사용자가 로그인되어 있지 않습니다.');
+        _hasShownError = true;
+      }
+    }
   }
 
   Future<void> _loadUserInfo() async {
@@ -34,8 +47,6 @@ class _MyInfoPageState extends State<MyInfoPage> {
     try {
       final User? user = supabase.auth.currentUser;
       if (user == null) {
-        if (!mounted) return;
-        showErrorDialog(context, '사용자가 로그인되어 있지 않습니다.');
         return;
       }
 
