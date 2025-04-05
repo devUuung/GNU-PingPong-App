@@ -30,10 +30,39 @@ class _UserListPageState extends State<UserListPage> {
     if (!mounted) return;
 
     try {
-      final response = await supabase.from('profiles').select();
+      // 현재 사용자의 ID
+      final currentUserId = supabase.auth.currentUser?.id;
+
+      // 사용자 목록을 가져옵니다
+      final response = await supabase.from('userinfo').select();
+
+      // 현재 사용자의 star_users 목록을 가져옵니다
+      List<String> currentUserStarredIds = [];
+      if (currentUserId != null) {
+        try {
+          final userInfo = await supabase
+              .from('userinfo')
+              .select('star_users')
+              .eq('id', currentUserId)
+              .single();
+
+          currentUserStarredIds =
+              List<String>.from(userInfo['star_users'] ?? []);
+        } catch (e) {
+          debugPrint('Error loading starred users: $e');
+        }
+      }
+
       if (!mounted) return;
+
+      // 사용자 목록을 설정하고 각 사용자의 star_users 필드를 업데이트합니다
+      final users = List<Map<String, dynamic>>.from(response);
+      for (var user in users) {
+        user['star_users'] = currentUserStarredIds;
+      }
+
       setState(() {
-        _users = List<Map<String, dynamic>>.from(response);
+        _users = users;
         _isLoading = false;
       });
     } catch (e) {
@@ -57,7 +86,8 @@ class _UserListPageState extends State<UserListPage> {
       case '패배 수':
         return user['lose_count']?.toString() ?? '';
       case '점수 폭':
-        return (user['score'] - user['initial_score']).toString();
+        return ((user['score'] ?? 1000) - (user['init_score'] ?? 1000))
+            .toString();
       case '승률':
         if (user['game_count'] == 0) {
           return '0%';
@@ -180,8 +210,10 @@ class _UserListPageState extends State<UserListPage> {
                     _buildTableRow(
                         '패배 수', user['lose_count']?.toString() ?? '0'),
                     _buildTableRow('승률', winRate),
-                    _buildTableRow('점수 폭',
-                        (user['score'] - user['initial_score']).toString()),
+                    _buildTableRow(
+                        '점수 폭',
+                        ((user['score'] ?? 1000) - (user['init_score'] ?? 1000))
+                            .toString()),
                   ],
                 ),
 
@@ -353,8 +385,19 @@ class _UserListPageState extends State<UserListPage> {
     final String name = user['username'] ?? '';
     final String value = getUserValue(user);
     final String profileImageUrl = user['profile_image_url'] ?? '';
-    final bool isStarred =
-        user['star_users']?.contains(supabase.auth.currentUser?.id) ?? false;
+
+    // 현재 사용자의 ID
+    final currentUserId = supabase.auth.currentUser?.id;
+
+    // 현재 사용자가 이 사용자를 즐겨찾기했는지 확인
+    bool isStarred = false;
+    if (currentUserId != null) {
+      // 현재 사용자의 star_users 목록을 확인
+      final starUsers = user['star_users'] as List<dynamic>?;
+      if (starUsers != null) {
+        isStarred = starUsers.contains(user['id']);
+      }
+    }
 
     return InkWell(
       onTap: () => _showUserProfile(context, user),
@@ -432,25 +475,38 @@ class _UserListPageState extends State<UserListPage> {
                 isStarred ? Icons.star : Icons.star_border,
                 color: isStarred ? Colors.amber : Colors.grey,
               ),
-              onPressed: () async {
-                final currentUser = supabase.auth.currentUser;
-                if (currentUser == null) return;
-
-                final starUsers = List<String>.from(user['star_users'] ?? []);
-                if (isStarred) {
-                  starUsers.remove(currentUser.id);
-                } else {
-                  starUsers.add(currentUser.id);
-                }
-
-                await supabase
-                    .from('userinfo')
-                    .update({'star_users': starUsers}).eq('id', user['id']);
-              },
+              onPressed: () => _handleStarButtonClick(user, isStarred),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// 즐겨찾기 버튼 클릭 처리 함수
+  Future<void> _handleStarButtonClick(
+      Map<String, dynamic> user, bool isStarred) async {
+    final currentUser = supabase.auth.currentUser;
+    if (currentUser == null) return;
+
+    final userInfo = await supabase
+        .from('userinfo')
+        .select('star_users')
+        .eq('id', currentUser.id)
+        .single();
+
+    var starUsers = userInfo['star_users'] as List<String>? ?? [];
+
+    if (isStarred == false) {
+      starUsers.add(user['id']);
+    } else {
+      starUsers.remove(user['id']);
+    }
+
+    await supabase
+        .from('userinfo')
+        .update({'star_users': starUsers})
+        .eq('id', currentUser.id)
+        .then((value) => _loadUsers());
   }
 }

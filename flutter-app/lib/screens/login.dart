@@ -56,13 +56,15 @@ class _LoginPageState extends State<LoginPage> {
       _isLoading = true;
     });
 
-    final email = _studentIdController.text.trim();
+    final studentId = _studentIdController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      showErrorDialog(context, '이메일과 비밀번호를 입력해주세요.');
+    if (studentId.isEmpty || password.isEmpty) {
+      showErrorDialog(context, '학번과 비밀번호를 입력해주세요.');
       return;
     }
+
+    final email = '$studentId@gnu.ac.kr';
 
     try {
       final response = await supabase.auth.signInWithPassword(

@@ -13,23 +13,19 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
-  final _emailController = TextEditingController();
+  final _studentIdController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _departmentController = TextEditingController();
   bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _studentIdController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _nameController.dispose();
     _phoneController.dispose();
-    _departmentController.dispose();
     super.dispose();
   }
 
@@ -37,9 +33,10 @@ class _SignUpPageState extends State<SignUpPage> {
     if (!mounted) return;
 
     if (_formKey.currentState!.validate()) {
-      final email = _emailController.text.trim();
+      final studentId = _studentIdController.text.trim();
       final password = _passwordController.text.trim();
       final confirmPassword = _confirmPasswordController.text.trim();
+      final phone = _phoneController.text.trim();
 
       if (password != confirmPassword) {
         showErrorDialog(context, '비밀번호가 일치하지 않습니다.');
@@ -51,9 +48,16 @@ class _SignUpPageState extends State<SignUpPage> {
       });
 
       try {
+        // 학번을 이메일 형식으로 변환
+        final email = '$studentId@gnu.ac.kr';
+
         final AuthResponse response = await supabase.auth.signUp(
           email: email,
           password: password,
+          data: {
+            'student_id': studentId,
+            'phone': phone,
+          },
         );
 
         if (response.user == null) {
@@ -99,38 +103,86 @@ class _SignUpPageState extends State<SignUpPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('이메일', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('학번', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              TextField(
-                controller: _emailController,
+              TextFormField(
+                controller: _studentIdController,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  hintText: '이메일을 입력하세요.',
+                  hintText: '학번을 입력하세요.',
                 ),
-                keyboardType: TextInputType.emailAddress,
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return '학번을 입력해주세요.';
+                  }
+                  if (value.length != 8) {
+                    return '학번은 8자리여야 합니다.';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 20),
               const Text('비밀번호', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              TextField(
+              TextFormField(
                 controller: _passwordController,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   hintText: '비밀번호를 입력하세요.',
                 ),
                 obscureText: true,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return '비밀번호를 입력해주세요.';
+                  }
+                  if (value.length < 6) {
+                    return '비밀번호는 6자 이상이어야 합니다.';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 20),
               const Text('비밀번호 확인',
                   style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              TextField(
+              TextFormField(
                 controller: _confirmPasswordController,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   hintText: '비밀번호를 다시 입력하세요.',
                 ),
                 obscureText: true,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return '비밀번호를 다시 입력해주세요.';
+                  }
+                  if (value != _passwordController.text) {
+                    return '비밀번호가 일치하지 않습니다.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+              const Text('전화번호', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _phoneController,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: '전화번호를 입력하세요.',
+                ),
+                keyboardType: TextInputType.phone,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return '전화번호를 입력해주세요.';
+                  }
+                  if (!RegExp(r'^01[0-9]-?[0-9]{4}-?[0-9]{4}$')
+                      .hasMatch(value)) {
+                    return '올바른 전화번호 형식이 아닙니다.';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 40),
               Center(

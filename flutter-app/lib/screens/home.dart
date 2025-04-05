@@ -5,6 +5,7 @@ import '../widgets/app_bar.dart';
 import '../widgets/favorite_users_widget.dart';
 import '../widgets/post.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../screens/post_create.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -71,7 +72,12 @@ class _HomePageState extends State<HomePage> {
                     TextButton(
                       onPressed: () {
                         // 명명된 라우트를 사용하여 글쓰기 화면으로 이동
-                        Navigator.pushNamed(context, '/post_create');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PostCreatePage(),
+                          ),
+                        );
                       },
                       child: const Text(
                         '글쓰기',
