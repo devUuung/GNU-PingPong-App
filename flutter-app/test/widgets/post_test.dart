@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/widgets/post.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mocktail/mocktail.dart';
+import '../utils/test_helper.dart';
 
 // Supabase 클라이언트 모킹을 위한 클래스들
 class MockSupabaseClient extends Mock implements SupabaseClient {
@@ -35,6 +36,10 @@ class TestPostgrestFilterBuilder extends Mock
 }
 
 void main() {
+  setUpAll(() async {
+    await setupTestEnvironment();
+  });
+
   group('Post 위젯 테스트', () {
     late MockSupabaseClient mockSupabaseClient;
     late MockGotrueClient mockGotrueClient;
@@ -150,5 +155,19 @@ void main() {
       // 참가자가 아닌 게시물에는 참여하기 버튼이 표시되어야 함
       expect(find.text('참여하기'), findsOneWidget);
     });
+  });
+
+  testWidgets('Post 위젯 UI 테스트', (WidgetTester tester) async {
+    await tester.pumpWidget(createTestableWidget(const Post()));
+
+    // 기본 UI 요소들이 존재하는지 확인
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
+
+  testWidgets('Post 위젯 클릭 테스트', (WidgetTester tester) async {
+    await tester.pumpWidget(createTestableWidget(const Post()));
+
+    // 로딩 상태가 끝날 때까지 대기
+    await tester.pump(const Duration(seconds: 1));
   });
 }

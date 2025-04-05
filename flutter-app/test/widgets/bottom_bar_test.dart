@@ -5,8 +5,13 @@ import 'package:flutter_app/screens/home.dart';
 import 'package:flutter_app/screens/user_list.dart';
 import 'package:flutter_app/screens/games.dart';
 import 'package:flutter_app/screens/profile.dart';
+import '../utils/test_helper.dart';
 
 void main() {
+  setUpAll(() async {
+    await setupTestEnvironment();
+  });
+
   group('CommonBottomNavigationBar 위젯 테스트', () {
     testWidgets('CommonBottomNavigationBar가 올바르게 렌더링되는지 테스트',
         (WidgetTester tester) async {
@@ -130,5 +135,32 @@ void main() {
       // 여전히 HomePage에 있는지 확인
       expect(find.byType(HomePage), findsOneWidget);
     });
+  });
+
+  testWidgets('CommonBottomNavigationBar UI 테스트', (WidgetTester tester) async {
+    await tester.pumpWidget(createTestableWidget(
+      const CommonBottomNavigationBar(currentPage: "home"),
+    ));
+
+    // 기본 UI 요소들이 존재하는지 확인
+    expect(find.byType(BottomNavigationBar), findsOneWidget);
+    expect(find.byIcon(Icons.home), findsOneWidget);
+    expect(find.byIcon(Icons.person), findsOneWidget);
+    expect(find.byIcon(Icons.list), findsOneWidget);
+  });
+
+  testWidgets('CommonBottomNavigationBar 네비게이션 테스트',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(createTestableWidget(
+      const CommonBottomNavigationBar(currentPage: "home"),
+    ));
+
+    // 프로필 탭 클릭
+    await tester.tap(find.byIcon(Icons.person));
+    await tester.pumpAndSettle();
+
+    // 명단 탭 클릭
+    await tester.tap(find.byIcon(Icons.list));
+    await tester.pumpAndSettle();
   });
 }

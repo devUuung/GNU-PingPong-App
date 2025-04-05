@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/widgets/app_bar.dart';
 import 'package:flutter_app/screens/alarm.dart';
+import '../utils/test_helper.dart';
 
 void main() {
+  setUpAll(() async {
+    await setupTestEnvironment();
+  });
+
   group('CommonAppBar 위젯 테스트', () {
     testWidgets('CommonAppBar가 올바르게 렌더링되는지 테스트', (WidgetTester tester) async {
       // CommonAppBar 위젯을 MaterialApp 내에서 렌더링
@@ -79,5 +84,31 @@ void main() {
       expect(
           appBar.preferredSize, equals(const Size.fromHeight(kToolbarHeight)));
     });
+  });
+
+  testWidgets('CommonAppBar UI 테스트', (WidgetTester tester) async {
+    await tester.pumpWidget(createTestableWidget(
+      const CommonAppBar(
+        currentPage: "home",
+        showNotificationIcon: true,
+      ),
+    ));
+
+    // 기본 UI 요소들이 존재하는지 확인
+    expect(find.byType(AppBar), findsOneWidget);
+    expect(find.byIcon(Icons.notifications), findsOneWidget);
+  });
+
+  testWidgets('CommonAppBar 알림 아이콘 클릭 테스트', (WidgetTester tester) async {
+    await tester.pumpWidget(createTestableWidget(
+      const CommonAppBar(
+        currentPage: "home",
+        showNotificationIcon: true,
+      ),
+    ));
+
+    // 알림 아이콘 클릭
+    await tester.tap(find.byIcon(Icons.notifications));
+    await tester.pumpAndSettle();
   });
 }
