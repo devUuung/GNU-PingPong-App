@@ -7,9 +7,50 @@ import 'package:flutter_app/screens/games.dart';
 import 'package:flutter_app/screens/profile.dart';
 import '../utils/test_helper.dart';
 
+/// CommonBottomNavigationBar 위젯 테스트
+///
+/// 이 테스트는 하단 네비게이션 바의 동작을 검증합니다.
+/// UI 요소의 존재 여부와 탭 전환 기능을 테스트합니다.
 void main() {
+  /// 모든 테스트 전에 실행되는 설정 함수
+  ///
+  /// 이 함수는 테스트 환경을 초기화합니다.
   setUpAll(() async {
     await setupTestEnvironment();
+  });
+
+  /// 하단 네비게이션 바 UI 테스트
+  ///
+  /// 이 테스트는 하단 네비게이션 바의 기본 UI 요소들이 존재하는지 확인합니다.
+  /// BottomNavigationBar와 각 탭의 아이콘들이 올바르게 표시되는지 검증합니다.
+  testWidgets('하단 네비게이션 바 UI 테스트', (WidgetTester tester) async {
+    await tester.pumpWidget(createTestableWidget(
+        const CommonBottomNavigationBar(currentPage: "home")));
+
+    // BottomNavigationBar가 존재하는지 확인
+    expect(find.byType(BottomNavigationBar), findsOneWidget);
+
+    // 각 탭의 아이콘이 존재하는지 확인
+    expect(find.byIcon(Icons.home), findsOneWidget);
+    expect(find.byIcon(Icons.person), findsOneWidget);
+    expect(find.byIcon(Icons.list), findsOneWidget);
+  });
+
+  /// 하단 네비게이션 바 탭 전환 테스트
+  ///
+  /// 이 테스트는 하단 네비게이션 바의 탭 전환 기능이 올바르게 동작하는지 확인합니다.
+  /// 각 탭을 클릭했을 때 선택 상태가 올바르게 변경되는지 검증합니다.
+  testWidgets('하단 네비게이션 바 탭 전환 테스트', (WidgetTester tester) async {
+    await tester.pumpWidget(createTestableWidget(
+        const CommonBottomNavigationBar(currentPage: "home")));
+
+    // 프로필 탭 클릭
+    await tester.tap(find.byIcon(Icons.person));
+    await tester.pumpAndSettle();
+
+    // 리스트 탭 클릭
+    await tester.tap(find.byIcon(Icons.list));
+    await tester.pumpAndSettle();
   });
 
   group('CommonBottomNavigationBar 위젯 테스트', () {
@@ -135,32 +176,5 @@ void main() {
       // 여전히 HomePage에 있는지 확인
       expect(find.byType(HomePage), findsOneWidget);
     });
-  });
-
-  testWidgets('CommonBottomNavigationBar UI 테스트', (WidgetTester tester) async {
-    await tester.pumpWidget(createTestableWidget(
-      const CommonBottomNavigationBar(currentPage: "home"),
-    ));
-
-    // 기본 UI 요소들이 존재하는지 확인
-    expect(find.byType(BottomNavigationBar), findsOneWidget);
-    expect(find.byIcon(Icons.home), findsOneWidget);
-    expect(find.byIcon(Icons.person), findsOneWidget);
-    expect(find.byIcon(Icons.list), findsOneWidget);
-  });
-
-  testWidgets('CommonBottomNavigationBar 네비게이션 테스트',
-      (WidgetTester tester) async {
-    await tester.pumpWidget(createTestableWidget(
-      const CommonBottomNavigationBar(currentPage: "home"),
-    ));
-
-    // 프로필 탭 클릭
-    await tester.tap(find.byIcon(Icons.person));
-    await tester.pumpAndSettle();
-
-    // 명단 탭 클릭
-    await tester.tap(find.byIcon(Icons.list));
-    await tester.pumpAndSettle();
   });
 }
