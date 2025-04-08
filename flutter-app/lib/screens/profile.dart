@@ -109,8 +109,8 @@ class _MyInfoPageState extends State<MyInfoPage> {
                       children: [
                         ProfileHeader(
                           userName: _userInfo!['username'] ?? 'None',
-                          profileImageUrl: _userInfo!['avatar_url'] ?? '',
-                          statusMessage: _userInfo!['status_message'] ?? 'None',
+                          userId: _userInfo!['id'] ?? '',
+                          statusMessage: _userInfo!['status'] ?? 'None',
                         ),
                         const SizedBox(height: 20),
                         InfoRow(label: '전공', value: _userInfo!['department']),
@@ -170,17 +170,18 @@ class _MyInfoPageState extends State<MyInfoPage> {
 class ProfileHeader extends StatelessWidget {
   final String userName;
   final String statusMessage;
-  final String profileImageUrl;
+  final String userId;
 
   const ProfileHeader({
     super.key,
     required this.userName,
-    required this.profileImageUrl,
+    required this.userId,
     this.statusMessage = '',
   });
 
   @override
   Widget build(BuildContext context) {
+    debugPrint("ProfileHeader build called for user ID: $userId");
     return Row(
       children: [
         // 프로필 이미지
@@ -195,32 +196,57 @@ class ProfileHeader extends StatelessWidget {
             ),
           ),
           child: ClipOval(
-            child: Image.network(
-              profileImageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                // 이미지 로드 실패 시 기본 아이콘 표시
-                return Container(
-                  color: Colors.grey[300],
-                  child: const Icon(
-                    Icons.person,
-                    size: 40,
-                    color: Colors.grey,
-                  ),
-                );
-              },
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Center(
-                  child: CircularProgressIndicator(
-                    value: loadingProgress.expectedTotalBytes != null
-                        ? loadingProgress.cumulativeBytesLoaded /
-                            loadingProgress.expectedTotalBytes!
-                        : null,
-                  ),
-                );
-              },
-            ),
+            child: (userId.isNotEmpty)
+                ? FutureBuilder<String>(
+                    future: () {
+                      final imagePath = 'public/$userId.png';
+                      debugPrint("ProfileHeader trying path: $imagePath");
+                      return supabase.storage
+                          .from('avatars')
+                          .createSignedUrl(imagePath, 60);
+                    }(),
+                    builder: (context, snapshot) {
+                      debugPrint(
+                          "ProfileHeader FutureBuilder state: ${snapshot.connectionState}, HasData: ${snapshot.hasData}, HasError: ${snapshot.hasError}");
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2));
+                      }
+                      if (snapshot.hasError ||
+                          !snapshot.hasData ||
+                          snapshot.data!.isEmpty) {
+                        debugPrint(
+                            "ProfileHeader FutureBuilder Error or No Data: ${snapshot.error}");
+                        return const Icon(Icons.person,
+                            size: 40, color: Colors.grey);
+                      }
+                      final imageUrl = snapshot.data!;
+                      debugPrint("ProfileHeader Image URL: $imageUrl");
+                      return Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                              strokeWidth: 2,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          debugPrint("Error loading header profile image: $error");
+                          return const Icon(Icons.person,
+                              size: 40, color: Colors.grey);
+                        },
+                      );
+                    },
+                  )
+                : const Icon(Icons.person, size: 40, color: Colors.grey),
           ),
         ),
         const SizedBox(width: 16),

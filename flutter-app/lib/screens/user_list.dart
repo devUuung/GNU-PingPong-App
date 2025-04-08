@@ -33,8 +33,9 @@ class _UserListPageState extends State<UserListPage> {
       // 현재 사용자의 ID
       final currentUserId = supabase.auth.currentUser?.id;
 
-      // 사용자 목록을 가져옵니다
-      final response = await supabase.from('userinfo').select();
+      // userinfo 테이블에서 필요한 모든 데이터를 직접 선택합니다.
+      final response =
+          await supabase.from('userinfo').select();
 
       // 현재 사용자의 star_users 목록을 가져옵니다
       List<String> currentUserStarredIds = [];
@@ -59,12 +60,14 @@ class _UserListPageState extends State<UserListPage> {
       final users = List<Map<String, dynamic>>.from(response);
       for (var user in users) {
         user['star_users'] = currentUserStarredIds;
+        // avatar_url은 이미 user 객체에 포함되어 있으므로 별도 처리 불필요
       }
 
       setState(() {
         _users = users;
         _isLoading = false;
       });
+      debugPrint("_loadUsers completed. User count: ${_users.length}"); // _loadUsers 완료 및 사용자 수 로그
     } catch (e) {
       if (!mounted) return;
       showErrorDialog(context, '사용자 목록을 불러오는 중 오류가 발생했습니다: $e');
@@ -101,6 +104,8 @@ class _UserListPageState extends State<UserListPage> {
 
   // 유저 프로필 팝업을 표시하는 함수
   void _showUserProfile(BuildContext context, Map<String, dynamic> user) {
+    debugPrint("_showUserProfile called for user: ${user['username']}"); // 함수 호출 로그
+    debugPrint("User ID in profile: ${user['id']}"); // ID 로깅
     // 승률 계산
     String winRate = '0%';
     if (user['game_count'] != null && user['game_count'] > 0) {
@@ -134,33 +139,65 @@ class _UserListPageState extends State<UserListPage> {
                         Border.all(color: const Color(0xFF65558F), width: 2),
                   ),
                   child: ClipOval(
-                    child: user['profile_image_url'] != null &&
-                            user['profile_image_url'].isNotEmpty
-                        ? Image.network(
-                            user['profile_image_url'],
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: Colors.grey[300],
-                                child: const Icon(Icons.person,
-                                    size: 60, color: Colors.grey),
-                              );
-                            },
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Center(
-                                child: CircularProgressIndicator(
-                                  value: loadingProgress.expectedTotalBytes !=
-                                          null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes!
-                                      : null,
-                                ),
+                    child: (user['id'] != null) // user['id'] 존재 여부 확인
+                        ? FutureBuilder<String>(
+                            future: () {
+                              final userId = user['id'];
+                              final imagePath = 'public/$userId.png'; // id로 경로 생성
+                              debugPrint("Profile trying path: $imagePath"); // 생성 경로 로깅
+                              return supabase.storage
+                                .from('avatars')
+                                .createSignedUrl(imagePath, 60); // 60초 유효 URL 생성
+                            }(),
+                            builder: (context, snapshot) {
+                              debugPrint("Profile FutureBuilder state: ${snapshot.connectionState}, HasData: ${snapshot.hasData}, HasError: ${snapshot.hasError}");
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2)); // 로딩 표시
+                              }
+                              if (snapshot.hasError ||
+                                  !snapshot.hasData ||
+                                  snapshot.data!.isEmpty) {
+                                // 오류 발생 또는 URL 없음
+                                debugPrint("Profile FutureBuilder Error or No Data: ${snapshot.error}"); // 에러/데이터 없음 로깅
+                                return const Icon(Icons.person,
+                                    size: 60, color: Colors.grey);
+                              }
+                              final imageUrl = snapshot.data!;
+                              debugPrint("Profile Image URL: $imageUrl");
+                              return Image.network(
+                                imageUrl,
+                                fit: BoxFit.cover,
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      value:
+                                          loadingProgress.expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                      .cumulativeBytesLoaded /
+                                                  loadingProgress
+                                                      .expectedTotalBytes!
+                                              : null,
+                                      strokeWidth: 2,
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) {
+                                  // URL 로드 실패 시
+                                  debugPrint("Error loading profile image: $error"); // 디버그 로그 추가
+                                  return const Icon(Icons.person,
+                                      size: 60, color: Colors.grey);
+                                },
                               );
                             },
                           )
                         : const Icon(Icons.person,
-                            size: 60, color: Colors.grey),
+                            size: 60, color: Colors.grey), // id가 없는 경우 (이론상 발생 안함)
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -176,12 +213,11 @@ class _UserListPageState extends State<UserListPage> {
                 ),
 
                 // 상태 메시지
-                if (user['status_message'] != null &&
-                    user['status_message'].isNotEmpty)
+                if (user['status'] != null && user['status'].isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 8.0),
                     child: Text(
-                      user['status_message'],
+                      user['status'],
                       style: const TextStyle(
                         fontSize: 16,
                         fontStyle: FontStyle.italic,
@@ -382,9 +418,11 @@ class _UserListPageState extends State<UserListPage> {
 
   /// 사용자 리스트의 각 행(프로필, 이름, 선택된 필터에 따른 값, 별표 아이콘)
   Widget _buildUserItem(Map<String, dynamic> user) {
+    debugPrint("_buildUserItem called for user: ${user['username']}");
     final String name = user['username'] ?? '';
     final String value = getUserValue(user);
-    final String profileImageUrl = user['profile_image_url'] ?? '';
+    final userId = user['id']; // 사용자 ID 가져오기
+    debugPrint("User ID in list item: $userId"); // ID 로깅
 
     // 현재 사용자의 ID
     final currentUserId = supabase.auth.currentUser?.id;
@@ -415,29 +453,60 @@ class _UserListPageState extends State<UserListPage> {
                 border: Border.all(color: const Color(0xFF65558F), width: 1),
               ),
               child: ClipOval(
-                child: profileImageUrl.isNotEmpty
-                    ? Image.network(
-                        profileImageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          // 이미지 로드 실패 시 기본 아이콘 표시
-                          return const Icon(Icons.person,
-                              color: Colors.black54);
-                        },
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
-                              strokeWidth: 2,
-                            ),
+                child: (userId != null) // user['id'] 존재 여부 확인
+                    ? FutureBuilder<String>(
+                        future: () {
+                          final imagePath = 'public/$userId.png'; // id로 경로 생성
+                          debugPrint("List item trying path: $imagePath"); // 생성 경로 로깅
+                          return supabase.storage
+                            .from('avatars')
+                            .createSignedUrl(imagePath, 60); // 60초 유효 URL 생성
+                        }(),
+                        builder: (context, snapshot) {
+                          debugPrint("List Item FutureBuilder state: ${snapshot.connectionState}, HasData: ${snapshot.hasData}, HasError: ${snapshot.hasError}");
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2)); // 로딩 표시
+                          }
+                          if (snapshot.hasError ||
+                              !snapshot.hasData ||
+                              snapshot.data!.isEmpty) {
+                            // 오류 발생 또는 URL 없음
+                            debugPrint("List Item FutureBuilder Error or No Data: ${snapshot.error}"); // 에러/데이터 없음 로깅
+                            return const Icon(Icons.person,
+                                color: Colors.black54);
+                          }
+                          final imageUrl = snapshot.data!;
+                          debugPrint("List Item Image URL: $imageUrl");
+                          return Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            loadingBuilder:
+                                (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes !=
+                                          null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                  strokeWidth: 2,
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              // URL 로드 실패 시
+                              debugPrint("Error loading list item image: $error"); // 디버그 로그 추가
+                              return const Icon(Icons.person,
+                                  color: Colors.black54);
+                            },
                           );
                         },
                       )
-                    : const Icon(Icons.person, color: Colors.black54),
+                    : const Icon(Icons.person, color: Colors.black54), // id가 없는 경우
               ),
             ),
             const SizedBox(width: 12),
@@ -489,24 +558,43 @@ class _UserListPageState extends State<UserListPage> {
     final currentUser = supabase.auth.currentUser;
     if (currentUser == null) return;
 
-    final userInfo = await supabase
-        .from('userinfo')
-        .select('star_users')
-        .eq('id', currentUser.id)
-        .single();
+    try { // 오류 처리를 위해 try-catch 추가
+      final userInfo = await supabase
+          .from('userinfo')
+          .select('star_users')
+          .eq('id', currentUser.id)
+          .single();
 
-    var starUsers = userInfo['star_users'] as List<String>? ?? [];
+      // 타입 캐스트 수정
+      final dynamic starUsersData = userInfo['star_users'];
+      // starUsersData가 List 타입인지 확인 후 List<String>으로 변환, 아니면 빈 리스트 사용
+      final List<String> starUsers = starUsersData is List
+          ? List<String>.from(starUsersData.whereType<String>()) // 각 요소가 String인지 확인하며 변환
+          : [];
 
-    if (isStarred == false) {
-      starUsers.add(user['id']);
-    } else {
-      starUsers.remove(user['id']);
+      // 수정된 starUsers 리스트를 사용하여 로직 진행
+      List<String> updatedStarUsers = List.from(starUsers); // 수정 가능한 리스트 복사
+
+      if (isStarred == false) {
+        updatedStarUsers.add(user['id']);
+      } else {
+        updatedStarUsers.remove(user['id']);
+      }
+
+      // 데이터베이스 업데이트
+      await supabase
+          .from('userinfo')
+          .update({'star_users': updatedStarUsers}) // 수정된 리스트로 업데이트
+          .eq('id', currentUser.id);
+
+      // 성공 시 UI 업데이트를 위해 _loadUsers 호출 (then 제거하고 await 이후 호출)
+       if (mounted) _loadUsers();
+
+    } catch (e) {
+       if (mounted) {
+          debugPrint("Error handling star button click: $e");
+          showErrorDialog(context, '즐겨찾기 처리 중 오류 발생: $e');
+       }
     }
-
-    await supabase
-        .from('userinfo')
-        .update({'star_users': starUsers})
-        .eq('id', currentUser.id)
-        .then((value) => _loadUsers());
   }
 }

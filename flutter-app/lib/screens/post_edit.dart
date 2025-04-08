@@ -10,7 +10,7 @@ final supabase = Supabase.instance.client;
 
 /// 모집 공고 수정 페이지
 class RecruitEditPage extends StatefulWidget {
-  final int postId;
+  final String postId;
 
   const RecruitEditPage({super.key, required this.postId});
 
@@ -29,7 +29,7 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
   DateTime? _selectedDateTime;
   bool _isLoading = true;
   Map<String, dynamic>? _postData;
-  int? _currentUserId;
+  String? _currentUserId;
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -58,50 +58,56 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
     try {
       final user = supabase.auth.currentUser;
       if (user == null) {
+        if (!mounted) return;
         showErrorDialog(context, '로그인이 필요합니다.');
         Navigator.pop(context);
         return;
       }
+      _currentUserId = user.id;
 
-      _currentUserId = int.parse(user.id);
-
-      // 모집공고 상세 정보 가져오기
       final response = await supabase
           .from('post')
           .select('*')
           .eq('id', widget.postId)
           .single();
 
-      if (response.isNotEmpty) {
-        if (!mounted) return;
-        setState(() {
-          _postData = response;
-          _isLoading = false;
+      _postData = response;
 
-          // 폼 필드 초기화
-          _titleController.text = _postData!['title'] ?? '';
-          _contentController.text = _postData!['content'] ?? '';
-          _maxUserController.text = _postData!['max_user'].toString();
-          _locationController.text = _postData!['place'] ?? '';
+      if (!mounted) return;
 
-          // 날짜 시간 설정
+      if (_postData!['writer_id'] != _currentUserId) {
+         showErrorDialog(context, '수정 권한이 없습니다.');
+         Navigator.pop(context);
+         return;
+      }
+
+      _titleController.text = _postData!['title'] ?? '';
+      _contentController.text = _postData!['content'] ?? '';
+      _maxUserController.text = (_postData!['max_user'] ?? 0).toString();
+      _locationController.text = _postData!['place'] ?? '';
+
+      if (_postData!['created_at'] != null) {
+        try {
           _selectedDateTime = DateTime.parse(_postData!['created_at']);
           _dateTimePickerController.text =
               DateFormat('yyyy-MM-dd HH:mm').format(_selectedDateTime!);
-
-          // 작성자 확인
-          if (_postData!['user_id'] != _currentUserId.toString()) {
-            showErrorDialog(context, '수정 권한이 없습니다.');
-            Navigator.pop(context);
-          }
-        });
+        } catch(e) {
+           debugPrint("Error parsing date: ${_postData!['created_at']} - $e");
+           _dateTimePickerController.text = '';
+        }
       } else {
-        if (!mounted) return;
-        showErrorDialog(context, '모집공고를 불러오는데 실패했습니다.');
-        Navigator.pop(context);
+         _dateTimePickerController.text = '';
       }
+
+      setState(() {
+        _isLoading = false;
+      });
+
     } catch (e) {
-      showErrorDialog(context, '오류가 발생했습니다: $e');
+      debugPrint('Error fetching post data: $e');
+      if (!mounted) return;
+      showErrorDialog(context, '모집공고를 불러오는 중 오류가 발생했습니다: $e');
+      setState(() => _isLoading = false);
       Navigator.pop(context);
     }
   }
@@ -140,90 +146,43 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
 
   // 모집공고 수정 요청
   Future<void> _updatePost() async {
-    if (!mounted) return;
-
-    if (_formKey.currentState!.validate()) {
-      final title = _titleController.text.trim();
-      final content = _contentController.text.trim();
-      final location = _locationController.text.trim();
-      final maxUser = _maxUserController.text.trim();
-
-      if (title.isEmpty ||
-          content.isEmpty ||
-          location.isEmpty ||
-          maxUser.isEmpty) {
-        showErrorDialog(context, '모든 필드를 입력해주세요.');
-        return;
-      }
-
-      setState(() {
-        _isLoading = true;
-      });
-
-      try {
-        await supabase
-            .from('post')
-            .update({
-              'title': title,
-              'place': location,
-              'max_user': int.parse(maxUser),
-              'content': content,
-              'created_at': _selectedDateTime!.toIso8601String(),
-              'updated_at': DateTime.now().toIso8601String(),
-            })
-            .eq('id', widget.postId)
-            .eq('user_id', _currentUserId.toString());
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('모집공고가 수정되었습니다.')),
-        );
-        Navigator.pop(context);
-      } catch (e) {
-        if (!mounted) return;
-        showErrorDialog(context, '모집공고 수정 중 오류가 발생했습니다: $e');
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      }
-    }
-  }
-
-  // 입력 검증
-  bool _validateInputs() {
     final title = _titleController.text.trim();
-    if (title.isEmpty) {
-      showErrorDialog(context, '제목을 입력해주세요.');
-      return false;
-    }
-
-    if (_selectedDateTime == null) {
-      showErrorDialog(context, '날짜/시간을 선택해주세요.');
-      return false;
-    }
-
-    final location = _locationController.text.trim();
-    if (location.isEmpty) {
-      showErrorDialog(context, '장소를 입력해주세요.');
-      return false;
-    }
-
-    final maxUser = _maxUserController.text.trim();
-    if (maxUser.isEmpty) {
-      showErrorDialog(context, '최대 인원을 입력해주세요.');
-      return false;
-    }
-
     final content = _contentController.text.trim();
-    if (content.isEmpty) {
-      showErrorDialog(context, '내용을 입력해주세요.');
-      return false;
-    }
+    final location = _locationController.text.trim();
+    final maxUser = _maxUserController.text.trim();
 
-    return true;
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await supabase
+          .from('post')
+          .update({
+            'title': title,
+            'place': location,
+            'max_user': int.parse(maxUser),
+            'content': content,
+            'created_at': _selectedDateTime?.toIso8601String(),
+          })
+          .eq('id', widget.postId)
+          .eq('writer_id', _currentUserId!);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('모집공고가 수정되었습니다.')),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      showErrorDialog(context, '모집공고 수정 중 오류가 발생했습니다: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -231,6 +190,7 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
     return Scaffold(
       appBar: const CommonAppBar(
         currentPage: "recruitEdit",
+        showNotificationIcon: false,
       ),
       backgroundColor: const Color(0xFFFEF7FF),
       body: Stack(
@@ -251,12 +211,18 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
                               fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         const SizedBox(height: 8),
-                        TextField(
+                        TextFormField(
                           controller: _titleController,
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
                             hintText: '예) 탁구 치실 분 모집합니다',
                           ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return '제목을 입력해주세요.';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 16),
                         // 날짜/시간
@@ -266,7 +232,7 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
                               fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         const SizedBox(height: 8),
-                        TextField(
+                        TextFormField(
                           controller: _dateTimePickerController,
                           readOnly: true, // 직접 입력하지 못하도록 설정
                           onTap: _pickDateTime, // 탭 시 날짜/시간 선택기 실행
@@ -274,6 +240,12 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
                             border: OutlineInputBorder(),
                             hintText: '날짜와 시간을 선택하세요',
                           ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return '날짜와 시간을 선택해주세요.';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 16),
                         // 장소
@@ -283,12 +255,18 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
                               fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         const SizedBox(height: 8),
-                        TextField(
+                        TextFormField(
                           controller: _locationController,
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
                             hintText: '예) 체육관, 동방 등',
                           ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return '장소를 입력해주세요.';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 16),
                         // 최대 인원
@@ -298,7 +276,7 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
                               fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         const SizedBox(height: 8),
-                        TextField(
+                        TextFormField(
                           controller: _maxUserController,
                           keyboardType: TextInputType.number,
                           inputFormatters: [
@@ -308,6 +286,18 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
                             border: OutlineInputBorder(),
                             hintText: '예) 4',
                           ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return '최대 인원을 입력해주세요.';
+                            }
+                             try {
+                               final n = int.parse(value);
+                               if (n <= 0) return '1명 이상이어야 합니다.';
+                            } catch (e) {
+                              return '유효한 숫자를 입력해주세요.';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 16),
                         // 내용
@@ -317,13 +307,19 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
                               fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         const SizedBox(height: 8),
-                        TextField(
+                        TextFormField(
                           controller: _contentController,
                           maxLines: 5,
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
                             hintText: '예) 같이 치실 분 자유롭게 신청해주세요 :)',
                           ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return '내용을 입력해주세요.';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 24),
                         // 수정하기 버튼
@@ -333,7 +329,7 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
                             onPressed: _isLoading
                                 ? null
                                 : () {
-                                    if (_validateInputs()) {
+                                    if (_formKey.currentState!.validate()) {
                                       _updatePost();
                                     }
                                   },

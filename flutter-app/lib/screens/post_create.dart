@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // for TextInputFormatter
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/dialog_utils.dart';
 
@@ -14,6 +15,8 @@ class PostCreatePage extends StatefulWidget {
 class _PostCreatePageState extends State<PostCreatePage> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
+  final _placeController = TextEditingController();
+  final _maxUserController = TextEditingController();
   bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
 
@@ -21,6 +24,8 @@ class _PostCreatePageState extends State<PostCreatePage> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _placeController.dispose();
+    _maxUserController.dispose();
     super.dispose();
   }
 
@@ -30,9 +35,23 @@ class _PostCreatePageState extends State<PostCreatePage> {
     if (_formKey.currentState!.validate()) {
       final title = _titleController.text.trim();
       final content = _contentController.text.trim();
+      final place = _placeController.text.trim();
+      final maxUserStr = _maxUserController.text.trim();
 
-      if (title.isEmpty || content.isEmpty) {
-        showErrorDialog(context, '제목과 내용을 입력해주세요.');
+      if (title.isEmpty || content.isEmpty || place.isEmpty || maxUserStr.isEmpty) {
+        showErrorDialog(context, '모든 필드를 입력해주세요.');
+        return;
+      }
+
+      int? maxUser;
+      try {
+        maxUser = int.parse(maxUserStr);
+        if (maxUser <= 0) {
+          showErrorDialog(context, '최대 인원은 1명 이상이어야 합니다.');
+          return;
+        }
+      } catch (e) {
+        showErrorDialog(context, '최대 인원에는 숫자만 입력해주세요.');
         return;
       }
 
@@ -44,14 +63,18 @@ class _PostCreatePageState extends State<PostCreatePage> {
       if (user == null) {
         if (!mounted) return;
         showErrorDialog(context, '사용자가 로그인되어 있지 않습니다.');
+        setState(() => _isLoading = false);
         return;
       }
 
       try {
-        await supabase.from('posts').insert({
+        await supabase.from('post').insert({
           'title': title,
           'content': content,
-          'user_id': user.id,
+          'writer_id': user.id,
+          'users': [user.id],
+          'place': place,
+          'max_user': maxUser,
           'created_at': DateTime.now().toIso8601String(),
         });
 
@@ -91,30 +114,88 @@ class _PostCreatePageState extends State<PostCreatePage> {
             children: [
               const Text('제목', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              TextField(
+              TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   hintText: '제목을 입력하세요.',
                 ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return '제목을 입력해주세요.';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 20),
               const Text('내용', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              TextField(
+              TextFormField(
                 controller: _contentController,
                 maxLines: 10,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   hintText: '내용을 입력하세요.',
                 ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return '내용을 입력해주세요.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+              const Text('장소', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _placeController,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: '예: 체육관, 제1학생회관 탁구장 등',
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return '장소를 입력해주세요.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+              const Text('최대 인원', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _maxUserController,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: '본인 포함 최대 인원 (숫자만 입력)',
+                ),
+                keyboardType: TextInputType.number,
+                inputFormatters: <TextInputFormatter>[
+                  FilteringTextInputFormatter.digitsOnly
+                ],
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return '최대 인원을 입력해주세요.';
+                  }
+                  try {
+                    final n = int.parse(value);
+                    if (n <= 0) return '1명 이상이어야 합니다.';
+                  } catch (e) {
+                    return '유효한 숫자를 입력해주세요.';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 40),
               Center(
                 child: _isLoading
                     ? const CircularProgressIndicator()
                     : ElevatedButton(
-                        onPressed: _createPost,
+                        onPressed: () {
+                          if (_formKey.currentState!.validate()) {
+                            _createPost();
+                          }
+                        },
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 24, vertical: 12),

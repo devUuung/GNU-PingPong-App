@@ -30,10 +30,8 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      title: const Align(
-        alignment: Alignment.center,
-        child: Text('경상탁구가족'),
-      ),
+      title: const Text('경상탁구가족'),
+      centerTitle: true,
       actions: [
         if (showNotificationIcon) // 알림 아이콘 표시 여부에 따라 조건부 렌더링
           IconButton(

@@ -9,11 +9,14 @@ class TestMockSupabaseClient implements SupabaseClientInterface {
 
   TestMockSupabaseClient(
       {this.mockResponse = const {
+        'id': '496453b8-d909-4a88-b9b7-745f22518b38',
         'version': '1.0.0',
         'required': false,
         'message': '테스트 버전',
         'android_link': 'market://details?id=com.gnu.pingpong',
         'ios_link': 'https://apps.apple.com/app/id앱ID',
+        'created_at': '2025-04-08T00:00:00Z',
+        'updated_at': '2025-04-08T00:00:00Z',
       }});
 
   @override
