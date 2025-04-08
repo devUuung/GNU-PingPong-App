@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-final supabase = Supabase.instance.client;
+SupabaseClient get supabase => Supabase.instance.client;
 
 /// 게시글 위젯
 class Post extends StatefulWidget {
