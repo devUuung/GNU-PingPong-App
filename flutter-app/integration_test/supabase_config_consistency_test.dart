@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'dart:convert';
+import 'package:logger/logger.dart';
 import 'package:collection/collection.dart';
 
 void main() {
@@ -11,6 +11,7 @@ void main() {
 
   late SupabaseClient prodClient;
   late SupabaseClient testClient;
+  final logger = Logger();
 
   // Deep equality 비교 함수
   final deepEq = const DeepCollectionEquality().equals;
@@ -30,7 +31,7 @@ void main() {
     try {
       await dotenv.load(fileName: ".env");
     } catch (e) {
-      print('Error loading .env file: $e');
+      logger.e('Error loading .env file: $e');
       rethrow;
     }
 
@@ -80,7 +81,7 @@ void main() {
       final testSchema = sortJsonList(testResponse, 'table_name');
 
       // 차이점 상세 출력
-      print('\n=== 스키마 비교 결과 ===');
+      logger.i('=== 스키마 비교 결과 ===');
 
       // 테이블 목록 비교
       final prodTables =
@@ -88,14 +89,14 @@ void main() {
       final testTables =
           testSchema?.map((t) => t['table_name'] as String).toSet() ?? {};
 
-      print('\n프로덕션에만 있는 테이블:');
-      print(prodTables.difference(testTables));
-      print('\n테스트에만 있는 테이블:');
-      print(testTables.difference(prodTables));
+      logger.i('프로덕션에만 있는 테이블:');
+      logger.i(prodTables.difference(testTables));
+      logger.i('테스트에만 있는 테이블:');
+      logger.i(testTables.difference(prodTables));
 
       // 공통 테이블의 컬럼 비교
       final commonTables = prodTables.intersection(testTables);
-      print('\n공통 테이블의 컬럼 차이:');
+      logger.i('공통 테이블의 컬럼 차이:');
 
       for (final tableName in commonTables) {
         final prodTable =
@@ -114,15 +115,15 @@ void main() {
               {};
 
           if (prodColumns != testColumns) {
-            print('\n테이블: $tableName');
-            print('프로덕션에만 있는 컬럼:');
-            print(prodColumns.difference(testColumns));
-            print('테스트에만 있는 컬럼:');
-            print(testColumns.difference(prodColumns));
+            logger.i('테이블: $tableName');
+            logger.i('프로덕션에만 있는 컬럼:');
+            logger.i(prodColumns.difference(testColumns));
+            logger.i('테스트에만 있는 컬럼:');
+            logger.i(testColumns.difference(prodColumns));
           }
 
           // 컬럼 속성 비교
-          print('\n테이블: $tableName의 컬럼 속성 비교:');
+          logger.i('테이블: $tableName의 컬럼 속성 비교:');
           for (final columnName in prodColumns.intersection(testColumns)) {
             final prodColumn = (prodTable['columns'] as List?)
                 ?.firstWhere((c) => c['column_name'] == columnName);
@@ -130,11 +131,11 @@ void main() {
                 ?.firstWhere((c) => c['column_name'] == columnName);
 
             if (prodColumn != null && testColumn != null) {
-              print('\n컬럼: $columnName');
-              print('프로덕션 속성:');
-              print(prodColumn);
-              print('테스트 속성:');
-              print(testColumn);
+              logger.i('컬럼: $columnName');
+              logger.i('프로덕션 속성:');
+              logger.i(prodColumn);
+              logger.i('테스트 속성:');
+              logger.i(testColumn);
             }
           }
         }

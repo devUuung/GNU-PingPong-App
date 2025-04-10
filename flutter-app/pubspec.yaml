@@ -43,6 +43,7 @@ dev_dependencies:
   build_runner: ^2.4.8
   collection: ^1.18.0 # 기존 의존성 (최신 버전 확인 권장)
   gotrue: ^2.6.0
+  logger: ^2.0.2
 
 flutter:
   uses-material-design: true
