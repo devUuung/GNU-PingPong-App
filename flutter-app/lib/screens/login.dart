@@ -8,7 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 final supabase = Supabase.instance.client;
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -29,32 +29,47 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _checkAutoLogin() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
-    await supabase.auth.signOut();
 
-    final session = await supabase.auth.currentSession;
+    try {
+      await supabase.auth.signOut();
+      final session = supabase.auth.currentSession;
 
-    if (session != null) {
-      _goHome();
+      if (session != null && mounted) {
+        _goHome();
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-
-    _isLoading = false;
   }
 
   Future<void> _login() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
 
-    final email = _studentIdController.text.trim();
+    final studentId = _studentIdController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      showErrorDialog(context, '이메일과 비밀번호를 입력해주세요.');
+    if (studentId.isEmpty || password.isEmpty) {
+      if (!mounted) return;
+      // 입력값이 비어있을 경우, 로딩 상태를 해제한 후 에러 다이얼로그 출력
+      setState(() {
+        _isLoading = false;
+      });
+      showErrorDialog(context, '학번과 비밀번호를 입력해주세요.');
       return;
     }
+
+    final email = '$studentId@gnu.ac.kr';
 
     try {
       final response = await supabase.auth.signInWithPassword(
@@ -63,26 +78,36 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (response.session == null) {
+        if (!mounted) return;
+        // 로그인 실패 시 로딩 상태 해제
+        setState(() {
+          _isLoading = false;
+        });
         showErrorDialog(context, '로그인 정보가 틀렸습니다.');
-        _isLoading = false;
         return;
       }
 
-      _goHome();
+      if (mounted) {
+        _goHome();
+      }
     } catch (e) {
+      if (!mounted) return;
       showErrorDialog(context, '로그인 중 오류 발생: $e');
-      _isLoading = false;
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   /// HomePage로 이동 (pushReplacement)
   void _goHome() {
     Navigator.pushReplacement(
-        context, MaterialPageRoute(builder: (context) => HomePage()));
+      context,
+      MaterialPageRoute(builder: (context) => const HomePage()),
+    );
   }
 
   @override
@@ -98,7 +123,7 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // 학번
+                  // 학번 입력 필드
                   TextField(
                     controller: _studentIdController,
                     decoration: const InputDecoration(
@@ -108,7 +133,7 @@ class _LoginPageState extends State<LoginPage> {
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 16),
-                  // 비밀번호
+                  // 비밀번호 입력 필드
                   TextField(
                     controller: _passwordController,
                     decoration: const InputDecoration(
@@ -136,7 +161,8 @@ class _LoginPageState extends State<LoginPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => const SignUpPage()),
+                          builder: (context) => const SignUpPage(),
+                        ),
                       );
                     },
                     child: const Text('회원가입하기'),

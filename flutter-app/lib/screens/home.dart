@@ -4,19 +4,17 @@ import '../widgets/bottom_bar.dart';
 import '../widgets/app_bar.dart';
 import '../widgets/favorite_users_widget.dart';
 import '../widgets/post.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-final supabase = Supabase.instance.client;
+import '../screens/post_create.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +51,7 @@ class _HomePageState extends State<HomePage> {
               // 즐겨찾기 위젯
               const FavoriteUsersWidget(),
               const SizedBox(height: 24),
-              // 모집 공고 섹션 헤더
+              // 모집 공고 섹션 헤더 및 글쓰기 버튼
               Padding(
                 padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
                 child: Row(
@@ -70,8 +68,12 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(width: 12), // 제목과 글쓰기 버튼 사이 간격
                     TextButton(
                       onPressed: () {
-                        // 명명된 라우트를 사용하여 글쓰기 화면으로 이동
-                        Navigator.pushNamed(context, '/post_create');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PostCreatePage(),
+                          ),
+                        );
                       },
                       child: const Text(
                         '글쓰기',
@@ -87,7 +89,7 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
               ),
-              // 게시물 위젯 - 가운데 정렬
+              // 게시물 위젯 (가운데 정렬)
               const Center(
                 child: Post(),
               ),

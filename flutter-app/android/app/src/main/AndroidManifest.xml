@@ -1,5 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.myapp">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- (필요 시) 인터넷 사용 권한 -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -24,7 +23,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <application
-        android:label="flutter_app"
+        android:label="경탁가"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 

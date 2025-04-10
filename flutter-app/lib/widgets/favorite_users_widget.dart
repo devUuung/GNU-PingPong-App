@@ -2,10 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-final supabase = Supabase.instance.client;
+SupabaseClient get supabase => Supabase.instance.client;
 
 class FavoriteUsersWidget extends StatefulWidget {
-  const FavoriteUsersWidget({Key? key}) : super(key: key);
+  const FavoriteUsersWidget({super.key});
 
   @override
   State<FavoriteUsersWidget> createState() => _FavoriteUsersWidgetState();
@@ -25,18 +25,42 @@ class _FavoriteUsersWidgetState extends State<FavoriteUsersWidget> {
     if (user == null) return;
 
     try {
-      final starUsers = await supabase
+      // 현재 사용자의 star_users 목록을 가져옵니다
+      final userInfo = await supabase
           .from('userinfo')
           .select('star_users')
-          .eq('id', user.id);
+          .eq('id', user.id)
+          .single();
+
+      final List<dynamic> starUserIds =
+          List<dynamic>.from(userInfo['star_users'] ?? []);
+
+      if (starUserIds.isEmpty) {
+        if (mounted) {
+          setState(() {
+            starredUsers = [];
+          });
+        }
+        return;
+      }
+
+      // 즐겨찾기된 사용자들의 정보를 가져옵니다
+      final response = await supabase
+          .from('userinfo')
+          .select('id, username, win_count, lose_count, game_count')
+          .inFilter('id', starUserIds);
 
       if (mounted) {
         setState(() {
-          starredUsers = List<Map<String, dynamic>>.from(starUsers);
+          starredUsers = List<Map<String, dynamic>>.from(response);
         });
       }
+
+      // 디버그 정보 출력
+      debugPrint('즐겨찾기된 사용자 수: ${starredUsers.length}');
+      debugPrint('즐겨찾기된 사용자 ID: $starUserIds');
     } catch (e) {
-      print('Error loading starred users: $e');
+      debugPrint('Error loading starred users: $e');
     }
   }
 

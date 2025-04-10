@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_app/screens/home.dart'; // 홈 화면
-import 'package:flutter_app/screens/user_list.dart'; // 회원목록 화면
-import 'package:flutter_app/screens/games.dart'; // 경기기록 화면
-import 'package:flutter_app/screens/profile.dart'; // 설정 화면
+import 'package:gnu_pingpong_app/screens/home.dart'; // 홈 화면
+import 'package:gnu_pingpong_app/screens/user_list.dart'; // 회원목록 화면
+import 'package:gnu_pingpong_app/screens/games.dart'; // 경기기록 화면
+import 'package:gnu_pingpong_app/screens/profile.dart'; // 설정 화면
 
 /// 공통 BottomNavigationBar 위젯
 class CommonBottomNavigationBar extends StatelessWidget {
@@ -10,9 +10,9 @@ class CommonBottomNavigationBar extends StatelessWidget {
   // 예: "home", "userList", "gameRecord", "settings" 등으로 구분
 
   const CommonBottomNavigationBar({
-    Key? key,
+    super.key,
     required this.currentPage,
-  }) : super(key: key);
+  });
 
   void _onItemTapped(BuildContext context, int index) {
     // 현재 페이지와 동일한 페이지를 선택한 경우 아무 작업도 하지 않음

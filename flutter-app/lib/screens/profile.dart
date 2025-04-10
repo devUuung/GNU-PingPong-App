@@ -1,16 +1,17 @@
 // lib/screens/settings.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_app/screens/change_password.dart';
-import 'package:flutter_app/widgets/app_bar.dart';
-import 'package:flutter_app/widgets/bottom_bar.dart';
-import 'package:flutter_app/screens/profile_edit.dart';
-import '../utils/dialog_utils.dart';
+import 'package:gnu_pingpong_app/screens/change_password.dart';
+import 'package:gnu_pingpong_app/widgets/app_bar.dart';
+import 'package:gnu_pingpong_app/widgets/bottom_bar.dart';
+import 'package:gnu_pingpong_app/screens/profile_edit.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/dialog_utils.dart';
+import '../widgets/common/loading_indicator.dart';
 
 final supabase = Supabase.instance.client;
 
 class MyInfoPage extends StatefulWidget {
-  const MyInfoPage({Key? key}) : super(key: key);
+  const MyInfoPage({super.key});
 
   @override
   State<MyInfoPage> createState() => _MyInfoPageState();
@@ -20,6 +21,7 @@ class _MyInfoPageState extends State<MyInfoPage> {
   bool _alarmEnabled = true;
   bool _isLoading = true;
   Map<String, dynamic>? _userInfo;
+  bool _hasShownError = false;
 
   @override
   void initState() {
@@ -27,30 +29,44 @@ class _MyInfoPageState extends State<MyInfoPage> {
     _loadUserInfo();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasShownError) {
+      final User? user = supabase.auth.currentUser;
+      if (user == null) {
+        showErrorDialog(context, '사용자가 로그인되어 있지 않습니다.');
+        _hasShownError = true;
+      }
+    }
+  }
+
   Future<void> _loadUserInfo() async {
-    final user = supabase.auth.currentUser;
-    if (user == null) return;
+    if (!mounted) return;
 
     try {
+      final User? user = supabase.auth.currentUser;
+      if (user == null) {
+        return;
+      }
+
       final response = await supabase
           .from('userinfo')
           .select('*')
           .eq('id', user.id)
           .single();
 
-      if (mounted) {
-        setState(() {
-          _userInfo = response;
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _userInfo = response;
+        _isLoading = false;
+      });
     } catch (e) {
-      print('사용자 정보 로드 중 오류: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      showErrorDialog(context, '사용자 정보를 불러오는 중 오류가 발생했습니다: $e');
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -80,7 +96,7 @@ class _MyInfoPageState extends State<MyInfoPage> {
         showNotificationIcon: false,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingIndicator(message: '프로필 정보를 불러오는 중...')
           : _userInfo == null
               ? const Center(child: Text('사용자 정보를 불러올 수 없습니다.'))
               : SingleChildScrollView(
@@ -93,8 +109,8 @@ class _MyInfoPageState extends State<MyInfoPage> {
                       children: [
                         ProfileHeader(
                           userName: _userInfo!['username'] ?? 'None',
-                          profileImageUrl: _userInfo!['avatar_url'] ?? '',
-                          statusMessage: _userInfo!['status_message'] ?? 'None',
+                          userId: _userInfo!['id'] ?? '',
+                          statusMessage: _userInfo!['status'] ?? 'None',
                         ),
                         const SizedBox(height: 20),
                         InfoRow(label: '전공', value: _userInfo!['department']),
@@ -125,7 +141,7 @@ class _MyInfoPageState extends State<MyInfoPage> {
                         ),
                         SettingsListItem(
                           title: '로그아웃',
-                          onTap: () => supabase.auth.signOut(),
+                          onTap: () => _signOut(),
                         ),
                         const SettingsListItem(title: '그 외 항목2'),
                       ],
@@ -136,22 +152,36 @@ class _MyInfoPageState extends State<MyInfoPage> {
           const CommonBottomNavigationBar(currentPage: "settings"),
     );
   }
+
+  Future<void> _signOut() async {
+    if (!mounted) return;
+
+    try {
+      await supabase.auth.signOut();
+      if (!mounted) return;
+      Navigator.of(context).pushReplacementNamed('/login');
+    } catch (e) {
+      if (!mounted) return;
+      showErrorDialog(context, '로그아웃 중 오류가 발생했습니다: $e');
+    }
+  }
 }
 
 class ProfileHeader extends StatelessWidget {
   final String userName;
   final String statusMessage;
-  final String profileImageUrl;
+  final String userId;
 
   const ProfileHeader({
-    Key? key,
+    super.key,
     required this.userName,
-    required this.profileImageUrl,
+    required this.userId,
     this.statusMessage = '',
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
+    debugPrint("ProfileHeader build called for user ID: $userId");
     return Row(
       children: [
         // 프로필 이미지
@@ -166,32 +196,57 @@ class ProfileHeader extends StatelessWidget {
             ),
           ),
           child: ClipOval(
-            child: Image.network(
-              profileImageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                // 이미지 로드 실패 시 기본 아이콘 표시
-                return Container(
-                  color: Colors.grey[300],
-                  child: const Icon(
-                    Icons.person,
-                    size: 40,
-                    color: Colors.grey,
-                  ),
-                );
-              },
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Center(
-                  child: CircularProgressIndicator(
-                    value: loadingProgress.expectedTotalBytes != null
-                        ? loadingProgress.cumulativeBytesLoaded /
-                            loadingProgress.expectedTotalBytes!
-                        : null,
-                  ),
-                );
-              },
-            ),
+            child: (userId.isNotEmpty)
+                ? FutureBuilder<String>(
+                    future: () {
+                      final imagePath = 'public/$userId.png';
+                      debugPrint("ProfileHeader trying path: $imagePath");
+                      return supabase.storage
+                          .from('avatars')
+                          .createSignedUrl(imagePath, 60);
+                    }(),
+                    builder: (context, snapshot) {
+                      debugPrint(
+                          "ProfileHeader FutureBuilder state: ${snapshot.connectionState}, HasData: ${snapshot.hasData}, HasError: ${snapshot.hasError}");
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2));
+                      }
+                      if (snapshot.hasError ||
+                          !snapshot.hasData ||
+                          snapshot.data!.isEmpty) {
+                        debugPrint(
+                            "ProfileHeader FutureBuilder Error or No Data: ${snapshot.error}");
+                        return const Icon(Icons.person,
+                            size: 40, color: Colors.grey);
+                      }
+                      final imageUrl = snapshot.data!;
+                      debugPrint("ProfileHeader Image URL: $imageUrl");
+                      return Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                              strokeWidth: 2,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          debugPrint(
+                              "Error loading header profile image: $error");
+                          return const Icon(Icons.person,
+                              size: 40, color: Colors.grey);
+                        },
+                      );
+                    },
+                  )
+                : const Icon(Icons.person, size: 40, color: Colors.grey),
           ),
         ),
         const SizedBox(width: 16),
@@ -227,10 +282,10 @@ class InfoRow extends StatelessWidget {
   final String value;
 
   const InfoRow({
-    Key? key,
+    super.key,
     required this.label,
     required this.value,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -276,13 +331,13 @@ class SettingsListItem extends StatelessWidget {
   final ValueChanged<bool>? onToggleChanged;
 
   const SettingsListItem({
-    Key? key,
+    super.key,
     required this.title,
     this.onTap,
     this.isToggle = false,
     this.toggleValue = false,
     this.onToggleChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -1,9 +1,8 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_app/screens/login.dart';
-import 'package:flutter_app/screens/post_create.dart';
-import 'package:flutter_app/screens/home.dart';
+import 'package:gnu_pingpong_app/screens/login.dart';
+import 'package:gnu_pingpong_app/utils/version_check.dart';
 import 'package:intl/date_symbol_data_local.dart';
 // import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -24,8 +23,8 @@ void main() async {
 
   await dotenv.load(fileName: '.env');
 
-  const supabaseUrl = 'https://neyijpnwimzgeszwupzh.supabase.co';
-  final supabaseKey = dotenv.env['SUPABASE_KEY']!;
+  final supabaseUrl = dotenv.env['PROD_SUPABASE_URL']!;
+  final supabaseKey = dotenv.env['PROD_SUPABASE_ANON_KEY']!;
 
   initializeDateFormatting('ko_KR');
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
@@ -35,7 +34,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +44,13 @@ class MyApp extends StatelessWidget {
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginPage(),
-        '/post_create': (context) => const RecruitPostPage(),
+      },
+      builder: (context, child) {
+        // 앱 실행 시 버전 체크
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          VersionCheck().checkForUpdate(context);
+        });
+        return child ?? const SizedBox.shrink();
       },
     );
   }

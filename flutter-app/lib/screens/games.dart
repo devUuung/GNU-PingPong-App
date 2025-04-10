@@ -1,6 +1,5 @@
 // lib/screens/games.dart
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../widgets/bottom_bar.dart';
 import 'find_user.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 final supabase = Supabase.instance.client;
 
 class GamesPage extends StatefulWidget {
-  const GamesPage({Key? key}) : super(key: key);
+  const GamesPage({super.key});
 
   @override
   State<GamesPage> createState() => _GamesPageState();
@@ -45,9 +44,9 @@ class _GamesPageState extends State<GamesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
+    return PopScope(
       // 뒤로가기 버튼 비활성화
-      onWillPop: () async => false,
+      canPop: false,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('경기기록'),
@@ -126,10 +125,7 @@ class _GamesPageState extends State<GamesPage> {
                                 final record = filteredGames[index];
                                 final id = record.gameId ?? '';
                                 final participants =
-                                    record.winnerName.toString() +
-                                            ' vs ' +
-                                            record.loserName.toString() ??
-                                        '';
+                                    '${record.winnerName} vs ${record.loserName}';
                                 final date =
                                     DateTime.parse(record.createdAt.toString())
                                         .toLocal()
@@ -179,7 +175,7 @@ class _GamesPageState extends State<GamesPage> {
               setState(() {
                 selectedFilter = filter;
               });
-              print('필터 "$filter" 선택됨');
+              debugPrint('필터 "$filter" 선택됨');
             },
           );
         }).toList(),

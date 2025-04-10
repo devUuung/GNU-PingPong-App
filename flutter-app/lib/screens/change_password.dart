@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_app/utils/dialog_utils.dart';
+import 'package:gnu_pingpong_app/utils/dialog_utils.dart';
 
 final supabase = Supabase.instance.client;
 
 class ChangePasswordPage extends StatefulWidget {
-  const ChangePasswordPage({Key? key}) : super(key: key);
+  const ChangePasswordPage({super.key});
 
   @override
   State<ChangePasswordPage> createState() => _ChangePasswordPageState();
@@ -25,6 +25,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   }
 
   Future<void> _onChangePassword() async {
+    if (!mounted) return;
+
     if (_formKey.currentState!.validate()) {
       final oldPwd = _oldPasswordController.text.trim();
       final newPwd = _newPasswordController.text.trim();
@@ -34,7 +36,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         return;
       }
 
-      // 비밀번호 유효성 검사
       if (newPwd.length < 6) {
         showErrorDialog(context, '새 비밀번호는 최소 6자 이상이어야 합니다.');
         return;
@@ -46,13 +47,31 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
       final User? user = supabase.auth.currentUser;
       if (user == null) {
+        if (!mounted) return;
         showErrorDialog(context, '사용자가 로그인되어 있지 않습니다.');
         return;
       }
 
-      await supabase.auth.updateUser(
-        UserAttributes(password: newPwd),
-      );
+      try {
+        await supabase.auth.updateUser(
+          UserAttributes(password: newPwd),
+        );
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('비밀번호가 변경되었습니다.')),
+        );
+        Navigator.pop(context);
+      } catch (e) {
+        if (!mounted) return;
+        showErrorDialog(context, '비밀번호 변경 중 오류가 발생했습니다: $e');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
     }
   }
 
