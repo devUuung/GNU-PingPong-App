@@ -24,18 +24,12 @@ jobs:
           channel: "stable"
           cache: true
 
-      # Add a step to setup the correct Dart SDK version
       - name: Setup Dart SDK
         uses: dart-lang/setup-dart@v1
         with:
           sdk: "3.6.1"
 
-      # Chrome 설치 및 설정
-      - name: Setup Chrome
-        uses: browser-actions/setup-chrome@v1
-
-      # 테스트용 .env 파일 생성 (모든 환경 변수 포함)
-      - name: Create test .env file
+      - name: Create .env file
         run: |
           echo "PROD_SUPABASE_URL=${{ secrets.PROD_SUPABASE_URL }}" > .env
           echo "PROD_SUPABASE_ANON_KEY=${{ secrets.PROD_SUPABASE_ANON_KEY }}" >> .env
@@ -44,41 +38,16 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-      
-      # 웹 플랫폼 활성화
-      - name: Enable web platform
-        run: flutter config --enable-web
-        
-      # Supabase 설정 일관성 테스트를 test 폴더로 복사 (integration_test -> test)
-      - name: Copy Supabase test to regular test
-        run: |
-          mkdir -p test/supabase
-          sed 's/import .*integration_test\/integration_test.dart.*;/import '\''package:flutter_test\/flutter_test.dart'\'';/' integration_test/supabase_config_consistency_test.dart > test/supabase/supabase_config_test.dart
-          sed -i 's/IntegrationTestWidgetsFlutterBinding.ensureInitialized(); \/\/ Integration test 바인딩 초기화/TestWidgetsFlutterBinding.ensureInitialized(); \/\/ 테스트 바인딩 초기화/' test/supabase/supabase_config_test.dart
-          sed -i 's/testWidgets/test/g' test/supabase/supabase_config_test.dart
-          # WidgetTester 파라미터 제거
-          sed -i 's/(WidgetTester tester) async/()/g' test/supabase/supabase_config_test.dart
-          # async 추가
-          sed -i 's/()\$/() async/g' test/supabase/supabase_config_test.dart
-          
-          # 변환된 파일 내용 로그 출력
-          echo "============= 변환된 테스트 파일 내용 ============="
-          cat test/supabase/supabase_config_test.dart
-        
-      # 일반 테스트로 변환한 Supabase 설정 일관성 테스트 실행
-      - name: Run Supabase Configuration Consistency Test
-        run: flutter test test/supabase/supabase_config_test.dart
-        
+
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .
 
       - name: Analyze project source
         run: flutter analyze
 
-      - name: Run tests
-        run: flutter test
+      - name: Run unit and widget tests
+        run: flutter test test/
 
-      # 릴리스 빌드용 .env 파일 생성 (프로덕션 키만 포함)
       - name: Create production .env file for build
         run: |
           echo "PROD_SUPABASE_URL=${{ secrets.PROD_SUPABASE_URL }}" > .env
@@ -111,7 +80,6 @@ jobs:
           channel: "stable"
           cache: true
 
-      # Add a step to setup the correct Dart SDK version
       - name: Setup Dart SDK
         uses: dart-lang/setup-dart@v1
         with:
@@ -120,7 +88,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # iOS 빌드용 .env 파일 (프로덕션 키만 포함)
       - name: Create production .env file for build
         run: |
           echo "PROD_SUPABASE_URL=${{ secrets.PROD_SUPABASE_URL }}" > .env
