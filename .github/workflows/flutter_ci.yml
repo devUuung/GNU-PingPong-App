@@ -36,6 +36,11 @@ jobs:
           echo "TEST_SUPABASE_URL=${{ secrets.TEST_SUPABASE_URL }}" >> .env
           echo "TEST_SUPABASE_ANON_KEY=${{ secrets.TEST_SUPABASE_ANON_KEY }}" >> .env
 
+      - name: Clean packages
+        run: |
+          flutter clean
+          flutter pub cache clean
+          
       - name: Install dependencies
         run: flutter pub get
 
@@ -87,6 +92,11 @@ jobs:
         with:
           sdk: "3.6.1"
 
+      - name: Clean packages
+        run: |
+          flutter clean
+          flutter pub cache clean
+          
       - name: Install dependencies
         run: flutter pub get
 
