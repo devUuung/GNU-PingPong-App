@@ -56,6 +56,14 @@ jobs:
           sed 's/import .*integration_test\/integration_test.dart.*;/import '\''package:flutter_test\/flutter_test.dart'\'';/' integration_test/supabase_config_consistency_test.dart > test/supabase/supabase_config_test.dart
           sed -i 's/IntegrationTestWidgetsFlutterBinding.ensureInitialized(); \/\/ Integration test 바인딩 초기화/TestWidgetsFlutterBinding.ensureInitialized(); \/\/ 테스트 바인딩 초기화/' test/supabase/supabase_config_test.dart
           sed -i 's/testWidgets/test/g' test/supabase/supabase_config_test.dart
+          # WidgetTester 파라미터 제거
+          sed -i 's/(WidgetTester tester) async/()/g' test/supabase/supabase_config_test.dart
+          # async 추가
+          sed -i 's/()\$/() async/g' test/supabase/supabase_config_test.dart
+          
+          # 변환된 파일 내용 로그 출력
+          echo "============= 변환된 테스트 파일 내용 ============="
+          cat test/supabase/supabase_config_test.dart
         
       # 일반 테스트로 변환한 Supabase 설정 일관성 테스트 실행
       - name: Run Supabase Configuration Consistency Test
