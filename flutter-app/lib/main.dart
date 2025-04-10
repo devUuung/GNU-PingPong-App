@@ -23,8 +23,8 @@ void main() async {
 
   await dotenv.load(fileName: '.env');
 
-  const supabaseUrl = 'https://neyijpnwimzgeszwupzh.supabase.co';
-  final supabaseKey = dotenv.env['SUPABASE_KEY']!;
+  final supabaseUrl = dotenv.env['PROD_SUPABASE_URL']!;
+  final supabaseKey = dotenv.env['PROD_SUPABASE_ANON_KEY']!;
 
   initializeDateFormatting('ko_KR');
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);

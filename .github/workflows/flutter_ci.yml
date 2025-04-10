@@ -30,12 +30,20 @@ jobs:
         with:
           sdk: "3.6.1"
 
-      - name: Create .env file
+      # 테스트용 .env 파일 생성 (모든 환경 변수 포함)
+      - name: Create test .env file
         run: |
-          echo "SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}" > .env
+          echo "PROD_SUPABASE_URL=${{ secrets.PROD_SUPABASE_URL }}" > .env
+          echo "PROD_SUPABASE_ANON_KEY=${{ secrets.PROD_SUPABASE_ANON_KEY }}" >> .env
+          echo "TEST_SUPABASE_URL=${{ secrets.TEST_SUPABASE_URL }}" >> .env
+          echo "TEST_SUPABASE_ANON_KEY=${{ secrets.TEST_SUPABASE_ANON_KEY }}" >> .env
 
       - name: Install dependencies
         run: flutter pub get
+        
+      # Supabase 설정 일관성 테스트를 가장 먼저 실행
+      - name: Run Supabase Configuration Consistency Test
+        run: flutter test integration_test/supabase_config_consistency_test.dart
 
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .
@@ -45,6 +53,12 @@ jobs:
 
       - name: Run tests
         run: flutter test
+
+      # 릴리스 빌드용 .env 파일 생성 (프로덕션 키만 포함)
+      - name: Create production .env file for build
+        run: |
+          echo "PROD_SUPABASE_URL=${{ secrets.PROD_SUPABASE_URL }}" > .env
+          echo "PROD_SUPABASE_ANON_KEY=${{ secrets.PROD_SUPABASE_ANON_KEY }}" >> .env
 
       - name: Build APK
         run: flutter build apk --release
@@ -79,12 +93,14 @@ jobs:
         with:
           sdk: "3.6.1"
 
-      - name: Create .env file
-        run: |
-          echo "SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}" > .env
-
       - name: Install dependencies
         run: flutter pub get
+
+      # iOS 빌드용 .env 파일 (프로덕션 키만 포함)
+      - name: Create production .env file for build
+        run: |
+          echo "PROD_SUPABASE_URL=${{ secrets.PROD_SUPABASE_URL }}" > .env
+          echo "PROD_SUPABASE_ANON_KEY=${{ secrets.PROD_SUPABASE_ANON_KEY }}" >> .env
 
       - name: Build iOS
         run: flutter build ios --release --no-codesign
