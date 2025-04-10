@@ -34,8 +34,7 @@ class _UserListPageState extends State<UserListPage> {
       final currentUserId = supabase.auth.currentUser?.id;
 
       // userinfo 테이블에서 필요한 모든 데이터를 직접 선택합니다.
-      final response =
-          await supabase.from('userinfo').select();
+      final response = await supabase.from('userinfo').select();
 
       // 현재 사용자의 star_users 목록을 가져옵니다
       List<String> currentUserStarredIds = [];
@@ -67,7 +66,8 @@ class _UserListPageState extends State<UserListPage> {
         _users = users;
         _isLoading = false;
       });
-      debugPrint("_loadUsers completed. User count: ${_users.length}"); // _loadUsers 완료 및 사용자 수 로그
+      debugPrint(
+          "_loadUsers completed. User count: ${_users.length}"); // _loadUsers 완료 및 사용자 수 로그
     } catch (e) {
       if (!mounted) return;
       showErrorDialog(context, '사용자 목록을 불러오는 중 오류가 발생했습니다: $e');
@@ -104,7 +104,8 @@ class _UserListPageState extends State<UserListPage> {
 
   // 유저 프로필 팝업을 표시하는 함수
   void _showUserProfile(BuildContext context, Map<String, dynamic> user) {
-    debugPrint("_showUserProfile called for user: ${user['username']}"); // 함수 호출 로그
+    debugPrint(
+        "_showUserProfile called for user: ${user['username']}"); // 함수 호출 로그
     debugPrint("User ID in profile: ${user['id']}"); // ID 로깅
     // 승률 계산
     String winRate = '0%';
@@ -143,14 +144,18 @@ class _UserListPageState extends State<UserListPage> {
                         ? FutureBuilder<String>(
                             future: () {
                               final userId = user['id'];
-                              final imagePath = 'public/$userId.png'; // id로 경로 생성
-                              debugPrint("Profile trying path: $imagePath"); // 생성 경로 로깅
+                              final imagePath =
+                                  'public/$userId.png'; // id로 경로 생성
+                              debugPrint(
+                                  "Profile trying path: $imagePath"); // 생성 경로 로깅
                               return supabase.storage
-                                .from('avatars')
-                                .createSignedUrl(imagePath, 60); // 60초 유효 URL 생성
+                                  .from('avatars')
+                                  .createSignedUrl(
+                                      imagePath, 60); // 60초 유효 URL 생성
                             }(),
                             builder: (context, snapshot) {
-                              debugPrint("Profile FutureBuilder state: ${snapshot.connectionState}, HasData: ${snapshot.hasData}, HasError: ${snapshot.hasError}");
+                              debugPrint(
+                                  "Profile FutureBuilder state: ${snapshot.connectionState}, HasData: ${snapshot.hasData}, HasError: ${snapshot.hasError}");
                               if (snapshot.connectionState ==
                                   ConnectionState.waiting) {
                                 return const Center(
@@ -161,7 +166,8 @@ class _UserListPageState extends State<UserListPage> {
                                   !snapshot.hasData ||
                                   snapshot.data!.isEmpty) {
                                 // 오류 발생 또는 URL 없음
-                                debugPrint("Profile FutureBuilder Error or No Data: ${snapshot.error}"); // 에러/데이터 없음 로깅
+                                debugPrint(
+                                    "Profile FutureBuilder Error or No Data: ${snapshot.error}"); // 에러/데이터 없음 로깅
                                 return const Icon(Icons.person,
                                     size: 60, color: Colors.grey);
                               }
@@ -189,7 +195,8 @@ class _UserListPageState extends State<UserListPage> {
                                 },
                                 errorBuilder: (context, error, stackTrace) {
                                   // URL 로드 실패 시
-                                  debugPrint("Error loading profile image: $error"); // 디버그 로그 추가
+                                  debugPrint(
+                                      "Error loading profile image: $error"); // 디버그 로그 추가
                                   return const Icon(Icons.person,
                                       size: 60, color: Colors.grey);
                                 },
@@ -197,7 +204,8 @@ class _UserListPageState extends State<UserListPage> {
                             },
                           )
                         : const Icon(Icons.person,
-                            size: 60, color: Colors.grey), // id가 없는 경우 (이론상 발생 안함)
+                            size: 60,
+                            color: Colors.grey), // id가 없는 경우 (이론상 발생 안함)
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -457,13 +465,15 @@ class _UserListPageState extends State<UserListPage> {
                     ? FutureBuilder<String>(
                         future: () {
                           final imagePath = 'public/$userId.png'; // id로 경로 생성
-                          debugPrint("List item trying path: $imagePath"); // 생성 경로 로깅
+                          debugPrint(
+                              "List item trying path: $imagePath"); // 생성 경로 로깅
                           return supabase.storage
-                            .from('avatars')
-                            .createSignedUrl(imagePath, 60); // 60초 유효 URL 생성
+                              .from('avatars')
+                              .createSignedUrl(imagePath, 60); // 60초 유효 URL 생성
                         }(),
                         builder: (context, snapshot) {
-                          debugPrint("List Item FutureBuilder state: ${snapshot.connectionState}, HasData: ${snapshot.hasData}, HasError: ${snapshot.hasError}");
+                          debugPrint(
+                              "List Item FutureBuilder state: ${snapshot.connectionState}, HasData: ${snapshot.hasData}, HasError: ${snapshot.hasError}");
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
                             return const Center(
@@ -474,7 +484,8 @@ class _UserListPageState extends State<UserListPage> {
                               !snapshot.hasData ||
                               snapshot.data!.isEmpty) {
                             // 오류 발생 또는 URL 없음
-                            debugPrint("List Item FutureBuilder Error or No Data: ${snapshot.error}"); // 에러/데이터 없음 로깅
+                            debugPrint(
+                                "List Item FutureBuilder Error or No Data: ${snapshot.error}"); // 에러/데이터 없음 로깅
                             return const Icon(Icons.person,
                                 color: Colors.black54);
                           }
@@ -483,8 +494,7 @@ class _UserListPageState extends State<UserListPage> {
                           return Image.network(
                             imageUrl,
                             fit: BoxFit.cover,
-                            loadingBuilder:
-                                (context, child, loadingProgress) {
+                            loadingBuilder: (context, child, loadingProgress) {
                               if (loadingProgress == null) return child;
                               return Center(
                                 child: CircularProgressIndicator(
@@ -499,14 +509,16 @@ class _UserListPageState extends State<UserListPage> {
                             },
                             errorBuilder: (context, error, stackTrace) {
                               // URL 로드 실패 시
-                              debugPrint("Error loading list item image: $error"); // 디버그 로그 추가
+                              debugPrint(
+                                  "Error loading list item image: $error"); // 디버그 로그 추가
                               return const Icon(Icons.person,
                                   color: Colors.black54);
                             },
                           );
                         },
                       )
-                    : const Icon(Icons.person, color: Colors.black54), // id가 없는 경우
+                    : const Icon(Icons.person,
+                        color: Colors.black54), // id가 없는 경우
               ),
             ),
             const SizedBox(width: 12),
@@ -558,7 +570,8 @@ class _UserListPageState extends State<UserListPage> {
     final currentUser = supabase.auth.currentUser;
     if (currentUser == null) return;
 
-    try { // 오류 처리를 위해 try-catch 추가
+    try {
+      // 오류 처리를 위해 try-catch 추가
       final userInfo = await supabase
           .from('userinfo')
           .select('star_users')
@@ -569,7 +582,8 @@ class _UserListPageState extends State<UserListPage> {
       final dynamic starUsersData = userInfo['star_users'];
       // starUsersData가 List 타입인지 확인 후 List<String>으로 변환, 아니면 빈 리스트 사용
       final List<String> starUsers = starUsersData is List
-          ? List<String>.from(starUsersData.whereType<String>()) // 각 요소가 String인지 확인하며 변환
+          ? List<String>.from(
+              starUsersData.whereType<String>()) // 각 요소가 String인지 확인하며 변환
           : [];
 
       // 수정된 starUsers 리스트를 사용하여 로직 진행
@@ -588,13 +602,12 @@ class _UserListPageState extends State<UserListPage> {
           .eq('id', currentUser.id);
 
       // 성공 시 UI 업데이트를 위해 _loadUsers 호출 (then 제거하고 await 이후 호출)
-       if (mounted) _loadUsers();
-
+      if (mounted) _loadUsers();
     } catch (e) {
-       if (mounted) {
-          debugPrint("Error handling star button click: $e");
-          showErrorDialog(context, '즐겨찾기 처리 중 오류 발생: $e');
-       }
+      if (mounted) {
+        debugPrint("Error handling star button click: $e");
+        showErrorDialog(context, '즐겨찾기 처리 중 오류 발생: $e');
+      }
     }
   }
 }

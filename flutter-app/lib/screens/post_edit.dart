@@ -76,9 +76,9 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
       if (!mounted) return;
 
       if (_postData!['writer_id'] != _currentUserId) {
-         showErrorDialog(context, '수정 권한이 없습니다.');
-         Navigator.pop(context);
-         return;
+        showErrorDialog(context, '수정 권한이 없습니다.');
+        Navigator.pop(context);
+        return;
       }
 
       _titleController.text = _postData!['title'] ?? '';
@@ -91,18 +91,17 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
           _selectedDateTime = DateTime.parse(_postData!['created_at']);
           _dateTimePickerController.text =
               DateFormat('yyyy-MM-dd HH:mm').format(_selectedDateTime!);
-        } catch(e) {
-           debugPrint("Error parsing date: ${_postData!['created_at']} - $e");
-           _dateTimePickerController.text = '';
+        } catch (e) {
+          debugPrint("Error parsing date: ${_postData!['created_at']} - $e");
+          _dateTimePickerController.text = '';
         }
       } else {
-         _dateTimePickerController.text = '';
+        _dateTimePickerController.text = '';
       }
 
       setState(() {
         _isLoading = false;
       });
-
     } catch (e) {
       debugPrint('Error fetching post data: $e');
       if (!mounted) return;
@@ -290,9 +289,9 @@ class _RecruitEditPageState extends State<RecruitEditPage> {
                             if (value == null || value.trim().isEmpty) {
                               return '최대 인원을 입력해주세요.';
                             }
-                             try {
-                               final n = int.parse(value);
-                               if (n <= 0) return '1명 이상이어야 합니다.';
+                            try {
+                              final n = int.parse(value);
+                              if (n <= 0) return '1명 이상이어야 합니다.';
                             } catch (e) {
                               return '유효한 숫자를 입력해주세요.';
                             }

@@ -129,7 +129,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
 
     bool changed = false;
-    Map<String, dynamic> updatedFields = {}; // String -> dynamic으로 변경 (upsert 때문)
+    Map<String, dynamic> updatedFields =
+        {}; // String -> dynamic으로 변경 (upsert 때문)
 
     // 서버에서는 username으로 업데이트하므로 key 변경
     if (newNickname != _initialNickname) {
@@ -179,20 +180,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (changed) {
       // 닉네임 업데이트
       if (updatedFields.containsKey("username")) {
-        await supabase.from('userinfo').update({'username': updatedFields["username"]}).eq('id', user.id);
+        await supabase
+            .from('userinfo')
+            .update({'username': updatedFields["username"]}).eq('id', user.id);
       }
-       // 상태메시지 업데이트
+      // 상태메시지 업데이트
       if (updatedFields.containsKey("status")) {
-        await supabase.from('userinfo').update({'status': updatedFields["status"]}).eq('id', user.id);
+        await supabase
+            .from('userinfo')
+            .update({'status': updatedFields["status"]}).eq('id', user.id);
       }
 
       // 이미지 경로가 업데이트 되었으면 avatar_url 업데이트 (옵션)
       // 만약 user_list 등 다른 곳에서 avatar_url을 계속 사용한다면 여기서 업데이트
       if (uploadedFilePath != null) {
-         await supabase.from('userinfo').update({'avatar_url': uploadedFilePath}).eq('id', user.id);
-         debugPrint("Updated avatar_url in userinfo: $uploadedFilePath");
+        await supabase
+            .from('userinfo')
+            .update({'avatar_url': uploadedFilePath}).eq('id', user.id);
+        debugPrint("Updated avatar_url in userinfo: $uploadedFilePath");
       }
-
     } else {
       // 변경사항 없음 처리
       setState(() => _isLoading = false);
@@ -260,47 +266,80 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   : (_userId.isNotEmpty)
                                       ? FutureBuilder<String>(
                                           future: () {
-                                            final imagePath = 'public/$_userId.png';
-                                            debugPrint("EditProfile trying path: $imagePath");
+                                            final imagePath =
+                                                'public/$_userId.png';
+                                            debugPrint(
+                                                "EditProfile trying path: $imagePath");
                                             // createSignedUrl 사용 시 파일 존재 여부 확인 어려움 -> getPublicUrl 사용 고려 또는 오류 처리 강화
                                             try {
-                                                 // getPublicUrl은 파일이 없어도 오류를 발생시키지 않을 수 있음.
-                                                 // createSignedUrl은 파일 없으면 오류 발생시킴. 여기서는 오류 처리가 용이한 createSignedUrl 유지.
-                                                 return supabase.storage
-                                                    .from('avatars')
-                                                    .createSignedUrl(imagePath, 60);
+                                              // getPublicUrl은 파일이 없어도 오류를 발생시키지 않을 수 있음.
+                                              // createSignedUrl은 파일 없으면 오류 발생시킴. 여기서는 오류 처리가 용이한 createSignedUrl 유지.
+                                              return supabase.storage
+                                                  .from('avatars')
+                                                  .createSignedUrl(
+                                                      imagePath, 60);
                                             } catch (e) {
-                                                debugPrint("Error creating signed URL: $e");
-                                                return Future.value(''); // 오류 시 빈 문자열 반환
+                                              debugPrint(
+                                                  "Error creating signed URL: $e");
+                                              return Future.value(
+                                                  ''); // 오류 시 빈 문자열 반환
                                             }
                                           }(),
                                           builder: (context, snapshot) {
-                                            debugPrint("EditProfile FutureBuilder state: ${snapshot.connectionState}, HasData: ${snapshot.hasData}, HasError: ${snapshot.hasError}");
-                                            if (snapshot.connectionState == ConnectionState.waiting) {
-                                              return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+                                            debugPrint(
+                                                "EditProfile FutureBuilder state: ${snapshot.connectionState}, HasData: ${snapshot.hasData}, HasError: ${snapshot.hasError}");
+                                            if (snapshot.connectionState ==
+                                                ConnectionState.waiting) {
+                                              return const Center(
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                          strokeWidth: 2));
                                             }
                                             // 에러가 있거나, 데이터가 없거나, 빈 URL이면 기본 아이콘 표시
-                                            if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-                                               debugPrint("EditProfile FutureBuilder Error or No Data: ${snapshot.error}");
-                                               return Container(
-                                                  color: Colors.grey[300],
-                                                  child: const Icon(Icons.person, size: 60, color: Colors.grey),
-                                                );
+                                            if (snapshot.hasError ||
+                                                !snapshot.hasData ||
+                                                snapshot.data!.isEmpty) {
+                                              debugPrint(
+                                                  "EditProfile FutureBuilder Error or No Data: ${snapshot.error}");
+                                              return Container(
+                                                color: Colors.grey[300],
+                                                child: const Icon(Icons.person,
+                                                    size: 60,
+                                                    color: Colors.grey),
+                                              );
                                             }
                                             final imageUrl = snapshot.data!;
-                                            debugPrint("EditProfile Image URL: $imageUrl");
+                                            debugPrint(
+                                                "EditProfile Image URL: $imageUrl");
                                             return Image.network(
                                               imageUrl,
                                               fit: BoxFit.cover,
-                                              loadingBuilder: (context, child, loadingProgress) {
-                                                if (loadingProgress == null) return child;
-                                                return Center(child: CircularProgressIndicator(value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null, strokeWidth: 2));
+                                              loadingBuilder: (context, child,
+                                                  loadingProgress) {
+                                                if (loadingProgress == null)
+                                                  return child;
+                                                return Center(
+                                                    child: CircularProgressIndicator(
+                                                        value: loadingProgress
+                                                                    .expectedTotalBytes !=
+                                                                null
+                                                            ? loadingProgress
+                                                                    .cumulativeBytesLoaded /
+                                                                loadingProgress
+                                                                    .expectedTotalBytes!
+                                                            : null,
+                                                        strokeWidth: 2));
                                               },
-                                              errorBuilder: (context, error, stackTrace) {
-                                                debugPrint("Error loading existing profile image: $error");
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                debugPrint(
+                                                    "Error loading existing profile image: $error");
                                                 return Container(
                                                   color: Colors.grey[300],
-                                                  child: const Icon(Icons.person, size: 60, color: Colors.grey),
+                                                  child: const Icon(
+                                                      Icons.person,
+                                                      size: 60,
+                                                      color: Colors.grey),
                                                 );
                                               },
                                             );
@@ -309,7 +348,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       // _userId도 없는 경우 (이론상으론 거의 없음)
                                       : Container(
                                           color: Colors.grey[300],
-                                          child: const Icon(Icons.person, size: 60, color: Colors.grey),
+                                          child: const Icon(Icons.person,
+                                              size: 60, color: Colors.grey),
                                         ),
                             ),
                           ),

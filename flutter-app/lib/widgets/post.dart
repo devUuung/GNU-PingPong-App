@@ -47,10 +47,10 @@ class _PostState extends State<Post> {
         debugPrint("Posts loaded: ${_posts.length}, isLoading: $_isLoading");
       });
     } catch (e) {
-       debugPrint("Error fetching posts: $e");
-       if (mounted) {
-          setState(() => _isLoading = false);
-       }
+      debugPrint("Error fetching posts: $e");
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -149,15 +149,16 @@ class _PostState extends State<Post> {
             gameAt = DateTime.parse(post['created_at'] as String);
             formattedDate = DateFormat('M월 d일 a h시', 'ko_KR').format(gameAt);
           } catch (e) {
-             debugPrint("Error parsing created_at: ${post['created_at']} - $e");
-             // 파싱 오류 시 기본값 유지
+            debugPrint("Error parsing created_at: ${post['created_at']} - $e");
+            // 파싱 오류 시 기본값 유지
           }
         }
 
         // 다른 필드 null 처리
         final String title = post['title'] as String? ?? '제목 없음';
         final String gamePlace = post['place'] as String? ?? '장소 정보 없음';
-        final int maxUser = post['max_user'] as int? ?? 0; // max_user도 null 가능성 고려
+        final int maxUser =
+            post['max_user'] as int? ?? 0; // max_user도 null 가능성 고려
         final String content = post['content'] as String? ?? '내용 없음';
 
         // postId 가져오기
@@ -167,7 +168,8 @@ class _PostState extends State<Post> {
         if (postId.isEmpty) return const SizedBox.shrink();
 
         // 참가자 수 계산
-        final List<dynamic> currentParticipants = post['users'] as List<dynamic>? ?? [];
+        final List<dynamic> currentParticipants =
+            post['users'] as List<dynamic>? ?? [];
         final int participantCount = currentParticipants.length;
 
         return Container(
@@ -257,8 +259,7 @@ class _PostState extends State<Post> {
                           IconButton(
                             icon: const Icon(Icons.delete,
                                 color: Color(0xFF65558F)),
-                            onPressed: () =>
-                                _confirmDelete(context, postId),
+                            onPressed: () => _confirmDelete(context, postId),
                           ),
                           const Text('삭제'),
                         ],

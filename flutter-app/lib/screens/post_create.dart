@@ -38,7 +38,10 @@ class _PostCreatePageState extends State<PostCreatePage> {
       final place = _placeController.text.trim();
       final maxUserStr = _maxUserController.text.trim();
 
-      if (title.isEmpty || content.isEmpty || place.isEmpty || maxUserStr.isEmpty) {
+      if (title.isEmpty ||
+          content.isEmpty ||
+          place.isEmpty ||
+          maxUserStr.isEmpty) {
         showErrorDialog(context, '모든 필드를 입력해주세요.');
         return;
       }
@@ -161,7 +164,8 @@ class _PostCreatePageState extends State<PostCreatePage> {
                 },
               ),
               const SizedBox(height: 20),
-              const Text('최대 인원', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('최대 인원',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _maxUserController,

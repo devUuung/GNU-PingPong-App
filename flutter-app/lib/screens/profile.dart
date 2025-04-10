@@ -210,8 +210,7 @@ class ProfileHeader extends StatelessWidget {
                           "ProfileHeader FutureBuilder state: ${snapshot.connectionState}, HasData: ${snapshot.hasData}, HasError: ${snapshot.hasError}");
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2));
+                            child: CircularProgressIndicator(strokeWidth: 2));
                       }
                       if (snapshot.hasError ||
                           !snapshot.hasData ||
@@ -239,7 +238,8 @@ class ProfileHeader extends StatelessWidget {
                           );
                         },
                         errorBuilder: (context, error, stackTrace) {
-                          debugPrint("Error loading header profile image: $error");
+                          debugPrint(
+                              "Error loading header profile image: $error");
                           return const Icon(Icons.person,
                               size: 40, color: Colors.grey);
                         },
