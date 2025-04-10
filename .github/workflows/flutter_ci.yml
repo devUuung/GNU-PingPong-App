@@ -30,6 +30,10 @@ jobs:
         with:
           sdk: "3.6.1"
 
+      # Chrome 설치 및 설정
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+
       # 테스트용 .env 파일 생성 (모든 환경 변수 포함)
       - name: Create test .env file
         run: |
@@ -40,11 +44,23 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+      
+      # 웹 플랫폼 활성화
+      - name: Enable web platform
+        run: flutter config --enable-web
         
-      # Supabase 설정 일관성 테스트를 가장 먼저 실행
+      # Supabase 설정 일관성 테스트를 test 폴더로 복사 (integration_test -> test)
+      - name: Copy Supabase test to regular test
+        run: |
+          mkdir -p test/supabase
+          sed 's/import .*integration_test\/integration_test.dart.*;/import '\''package:flutter_test\/flutter_test.dart'\'';/' integration_test/supabase_config_consistency_test.dart > test/supabase/supabase_config_test.dart
+          sed -i 's/IntegrationTestWidgetsFlutterBinding.ensureInitialized(); \/\/ Integration test 바인딩 초기화/TestWidgetsFlutterBinding.ensureInitialized(); \/\/ 테스트 바인딩 초기화/' test/supabase/supabase_config_test.dart
+          sed -i 's/testWidgets/test/g' test/supabase/supabase_config_test.dart
+        
+      # 일반 테스트로 변환한 Supabase 설정 일관성 테스트 실행
       - name: Run Supabase Configuration Consistency Test
-        run: flutter test integration_test/supabase_config_consistency_test.dart
-
+        run: flutter test test/supabase/supabase_config_test.dart
+        
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .
 
