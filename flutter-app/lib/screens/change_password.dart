@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_app/utils/dialog_utils.dart';
+import 'package:gnu_pingpong_app/utils/dialog_utils.dart';
 
 final supabase = Supabase.instance.client;
 

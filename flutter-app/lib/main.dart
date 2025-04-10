@@ -1,8 +1,8 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_app/screens/login.dart';
-import 'package:flutter_app/utils/version_check.dart';
+import 'package:gnu_pingpong_app/screens/login.dart';
+import 'package:gnu_pingpong_app/utils/version_check.dart';
 import 'package:intl/date_symbol_data_local.dart';
 // import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';

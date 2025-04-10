@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_app/screens/home.dart'; // 홈 화면
-import 'package:flutter_app/screens/user_list.dart'; // 회원목록 화면
-import 'package:flutter_app/screens/games.dart'; // 경기기록 화면
-import 'package:flutter_app/screens/profile.dart'; // 설정 화면
+import 'package:gnu_pingpong_app/screens/home.dart'; // 홈 화면
+import 'package:gnu_pingpong_app/screens/user_list.dart'; // 회원목록 화면
+import 'package:gnu_pingpong_app/screens/games.dart'; // 경기기록 화면
+import 'package:gnu_pingpong_app/screens/profile.dart'; // 설정 화면
 
 /// 공통 BottomNavigationBar 위젯
 class CommonBottomNavigationBar extends StatelessWidget {

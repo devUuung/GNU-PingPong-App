@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_app/widgets/post.dart';
+import 'package:gnu_pingpong_app/widgets/post.dart';
 import '../helpers/widget_test_helpers.dart';
 
 // 테스트용 Post 위젯 래퍼

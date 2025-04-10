@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_app/screens/user_list.dart';
+import 'package:gnu_pingpong_app/screens/user_list.dart';
 import '../helpers/widget_test_helpers.dart';
 
 // 테스트용 UserList 위젯 래퍼

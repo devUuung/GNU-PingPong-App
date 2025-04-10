@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_app/screens/post_create.dart';
+import 'package:gnu_pingpong_app/screens/post_create.dart';
 
 // Supabase 모의 설정 또는 테스트 환경 설정 필요 (만약 Supabase 호출이 있다면)
 // 예: https://github.com/supabase/supabase-flutter#testing-with-fakesupabase

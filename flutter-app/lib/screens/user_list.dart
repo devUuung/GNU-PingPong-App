@@ -1,6 +1,6 @@
 // lib/screens/user_list.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_app/widgets/bottom_bar.dart';
+import 'package:gnu_pingpong_app/widgets/bottom_bar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/dialog_utils.dart';
 import '../widgets/common/loading_indicator.dart';

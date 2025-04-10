@@ -1,5 +1,5 @@
-name: flutter_app
-description: "A new Flutter project."
+name: gnu_pingpong_app
+description: "경상대학교 경상탁구가족(경탁가) 동아리의 공식 앱입니다."
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 

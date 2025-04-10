@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_app/screens/win_lost_select.dart';
+import 'package:gnu_pingpong_app/screens/win_lost_select.dart';
 
 void main() {
   testWidgets('WinLoseSelect 위젯이 정상적으로 렌더링되는지 테스트',

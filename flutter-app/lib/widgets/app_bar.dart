@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_app/screens/alarm.dart';
+import 'package:gnu_pingpong_app/screens/alarm.dart';
 
 /// 여러 페이지에서 공통으로 사용하는 AppBar 위젯
 /// 현재 페이지를 문자열 currentPage로 받아서, 페이지별로 액션 로직을 달리할 수 있음
