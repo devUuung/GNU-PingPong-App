@@ -17,6 +17,8 @@ class _SignUpPageState extends State<SignUpPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _departmentController = TextEditingController();
   bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
 
@@ -26,6 +28,8 @@ class _SignUpPageState extends State<SignUpPage> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _phoneController.dispose();
+    _nameController.dispose();
+    _departmentController.dispose();
     super.dispose();
   }
 
@@ -37,6 +41,8 @@ class _SignUpPageState extends State<SignUpPage> {
       final password = _passwordController.text.trim();
       final confirmPassword = _confirmPasswordController.text.trim();
       final phone = _phoneController.text.trim();
+      final name = _nameController.text.trim();
+      final department = _departmentController.text.trim();
 
       if (password != confirmPassword) {
         showErrorDialog(context, '비밀번호가 일치하지 않습니다.');
@@ -57,6 +63,8 @@ class _SignUpPageState extends State<SignUpPage> {
           data: {
             'student_id': studentId,
             'phone': phone,
+            'name': name,
+            'department': department,
           },
         );
 
@@ -116,8 +124,40 @@ class _SignUpPageState extends State<SignUpPage> {
                   if (value == null || value.isEmpty) {
                     return '학번을 입력해주세요.';
                   }
-                  if (value.length != 8) {
-                    return '학번은 8자리여야 합니다.';
+                  if (!RegExp(r'^\d{9}$').hasMatch(value)) {
+                    return '올바른 학번 형식이 아닙니다 (9자리 숫자).';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+              const Text('이름', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: '이름을 입력하세요.',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return '이름을 입력해주세요.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+              const Text('학과', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _departmentController,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: '학과를 입력하세요.',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return '학과를 입력해주세요.';
                   }
                   return null;
                 },
@@ -170,15 +210,14 @@ class _SignUpPageState extends State<SignUpPage> {
                 controller: _phoneController,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  hintText: '전화번호를 입력하세요.',
+                  hintText: '전화번호를 입력하세요 (예: 010-1234-5678).',
                 ),
                 keyboardType: TextInputType.phone,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return '전화번호를 입력해주세요.';
                   }
-                  if (!RegExp(r'^01[0-9]-?[0-9]{4}-?[0-9]{4}$')
-                      .hasMatch(value)) {
+                  if (!RegExp(r'^01[0-9]-?\d{3,4}-?\d{4}$').hasMatch(value)) {
                     return '올바른 전화번호 형식이 아닙니다.';
                   }
                   return null;
