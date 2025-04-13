@@ -28,34 +28,47 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // AppBar
-      appBar: AppBar(
-        title: const Text('둘 중 누가 이겼나요?'),
-        centerTitle: true,
-        backgroundColor: const Color(0xFFFEF7FF),
-        elevation: 0,
-      ),
-      backgroundColor: const Color(0xFFFEF7FF),
-      body: SafeArea(
-        child: Center(
-          child: _buildNameButtons(context),
-        ),
-      ),
-      // 하단 확인 버튼
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        child: ElevatedButton(
-          onPressed: _winnerTag == null
-              ? null
-              : () async {
-                  await _onConfirm();
-                },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _winnerTag == null ? Colors.grey : Colors.blue,
-            minimumSize: const Size(double.infinity, 48),
+    return WillPopScope(
+      onWillPop: () async {
+        // 뒤로 가기 버튼 누를 때 매칭 요청 취소하지 않음
+        // 사용자가 경기 입력을 계속할 수 있도록 함
+        return true;
+      },
+      child: Scaffold(
+        // AppBar
+        appBar: AppBar(
+          title: const Text('둘 중 누가 이겼나요?'),
+          centerTitle: true,
+          backgroundColor: const Color(0xFFFEF7FF),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
           ),
-          child: const Text('확인'),
+        ),
+        backgroundColor: const Color(0xFFFEF7FF),
+        body: SafeArea(
+          child: Center(
+            child: _buildNameButtons(context),
+          ),
+        ),
+        // 하단 확인 버튼
+        bottomNavigationBar: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          child: ElevatedButton(
+            onPressed: _winnerTag == null
+                ? null
+                : () async {
+                    await _onConfirm();
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _winnerTag == null ? Colors.grey : Colors.blue,
+              minimumSize: const Size(double.infinity, 48),
+            ),
+            child: const Text('확인'),
+          ),
         ),
       ),
     );
@@ -124,8 +137,10 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
         'score_change': -minusScore,
       });
 
-      // 매칭 요청 취소
-      await supabase.from('match_requests').delete().eq('user_id', widget.myId);
+      // 매칭 요청 삭제 (RPC 함수 사용)
+      await supabase.rpc('delete_match', params: {
+        'user_uuid': widget.myId.toString(),
+      });
 
       if (!mounted) return;
       Navigator.pushReplacement(

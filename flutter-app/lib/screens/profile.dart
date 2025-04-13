@@ -7,6 +7,7 @@ import 'package:gnu_pingpong_app/screens/profile_edit.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/dialog_utils.dart';
 import '../widgets/common/loading_indicator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -71,17 +72,11 @@ class _MyInfoPageState extends State<MyInfoPage> {
   }
 
   void _onChangePassword(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const ChangePasswordPage()),
-    );
+    Navigator.pushNamed(context, '/change_password');
   }
 
   void _onEditProfile(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const EditProfilePage()),
-    ).then((_) {
+    Navigator.pushNamed(context, '/profile/edit').then((_) {
       if (mounted) {
         _loadUserInfo();
       }
@@ -157,7 +152,14 @@ class _MyInfoPageState extends State<MyInfoPage> {
     if (!mounted) return;
 
     try {
+      // 자동 로그인 정보 삭제
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('studentId');
+      await prefs.remove('password');
+      
+      // 수퍼베이스 로그아웃
       await supabase.auth.signOut();
+      
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/login');
     } catch (e) {

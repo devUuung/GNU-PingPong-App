@@ -1,7 +1,7 @@
 name: gnu_pingpong_app
 description: "경상대학교 경상탁구가족(경탁가) 동아리의 공식 앱입니다."
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
-version: 1.0.0+1
+version: 1.0.0+1  # <버전>+<빌드 번호> 형식입니다. TestFlight 제출마다 빌드 번호를 증가시켜야 합니다.
 
 environment:
   sdk: ">=3.2.6 <4.0.0"
