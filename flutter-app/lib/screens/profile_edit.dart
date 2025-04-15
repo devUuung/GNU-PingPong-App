@@ -5,6 +5,7 @@ import 'package:gnu_pingpong_app/widgets/app_bar.dart';
 import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/dialog_utils.dart';
+import 'package:image/image.dart' as img; // 이미지 처리 라이브러리 추가
 
 final supabase = Supabase.instance.client;
 
@@ -49,26 +50,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
       _isLoading = true;
     });
 
-    final user = supabase.auth.currentUser;
-    if (user == null) {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) {
+        if (!mounted) return;
+        showErrorDialog(context, '로그인이 필요합니다.');
+        setState(() => _isLoading = false);
+        return;
+      }
+      final userInfo = await supabase
+          .from('userinfo')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
       if (!mounted) return;
-      showErrorDialog(context, '로그인이 필요합니다.');
-      return;
+      setState(() {
+        _initialNickname = userInfo['username'] ?? '';
+        _initialStatusMsg = userInfo['status_message'] ?? '';
+        _userId = user.id;
+        _nicknameController.text = _initialNickname;
+        _statusMessageController.text = _initialStatusMsg;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("Error loading user info: $e");
+      if (!mounted) return;
+      showErrorDialog(context, '사용자 정보 로드 중 오류 발생: $e');
+      setState(() => _isLoading = false);
     }
-    final userInfo =
-        await supabase.from('userinfo').select('*').eq('id', user.id).single();
-
-    if (!mounted) return;
-    setState(() {
-      _initialNickname = userInfo['username'] ?? '';
-      _initialStatusMsg = userInfo['status_message'] ?? '';
-      _userId = user.id; // 사용자 ID 저장
-
-      // 컨트롤러에 초기값 설정
-      _nicknameController.text = _initialNickname;
-      _statusMessageController.text = _initialStatusMsg;
-      _isLoading = false;
-    });
   }
 
   @override
@@ -125,6 +135,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (user == null) {
       if (!mounted) return;
       showErrorDialog(context, '로그인이 필요합니다.');
+      setState(() => _isLoading = false);
       return;
     }
 
@@ -147,27 +158,47 @@ class _EditProfilePageState extends State<EditProfilePage> {
     // 이미지 변경이 있을 경우 Storage에 업로드/업데이트
     if (_avatarImageFile != null) {
       try {
-        final imagePath = 'public/${user.id}.png';
-        final imageFile = File(_avatarImageFile!.path);
-        final bytes = await _avatarImageFile!.readAsBytes();
-        final fileExt = _avatarImageFile!.path.split('.').last.toLowerCase();
-        final fileName = '${user.id}.$fileExt'; // 확장자 포함 파일명
+        // 원본 이미지 데이터 읽기
+        Uint8List rawImageBytes;
+        
+        if (kIsWeb) {
+          // 웹: 이미 Uint8List로 읽은 데이터 사용
+          rawImageBytes = _avatarImageBytes!;
+        } else {
+          // 모바일/데스크톱: 파일에서 바이트 읽기
+          rawImageBytes = await _avatarImageFile!.readAsBytes();
+        }
+        
+        debugPrint("원본 이미지 로드 완료: ${rawImageBytes.length} bytes");
+        
+        // 이미지 디코딩 (모든 형식 지원)
+        img.Image? decodedImage = img.decodeImage(rawImageBytes);
+        if (decodedImage == null) {
+          throw Exception("이미지 디코딩 실패");
+        }
+        
+        // PNG로 인코딩
+        Uint8List pngBytes = Uint8List.fromList(img.encodePng(decodedImage));
+        debugPrint("PNG 변환 완료: ${pngBytes.length} bytes");
+        
+        final fileName = '${user.id}.png'; // 파일 이름을 항상 {user.id}.png로 고정
         final filePath = 'public/$fileName'; // 최종 스토리지 경로
+        final contentType = 'image/png'; // Content-Type
 
-        // Storage에 파일 업로드 또는 업데이트 (upsert: true 사용)
-        await supabase.storage.from('avatars').uploadBinary(
+        // PNG 이미지를 Supabase Storage에 업로드
+        await supabase.storage.from('avatars').updateBinary(
               filePath,
-              kIsWeb ? bytes : imageFile.readAsBytesSync(), // 웹/모바일 분기
+              pngBytes, // PNG로 변환된 바이트 사용
               fileOptions: FileOptions(
                 cacheControl: '3600',
-                upsert: true, // 파일이 있으면 덮어쓰기
-                contentType: 'image/$fileExt', // Content-Type 설정
+                contentType: contentType,
               ),
             );
         uploadedFilePath = filePath; // 성공 시 경로 저장
-        debugPrint("Image uploaded/updated to: $uploadedFilePath");
+        debugPrint("Image updated at: $uploadedFilePath");
         changed = true; // 이미지 변경됨
       } catch (e) {
+        // 업로드 자체에서 오류 발생 시
         debugPrint('Storage 업로드 오류: $e');
         if (!mounted) return;
         showErrorDialog(context, '이미지 업로드 중 오류 발생: $e');
@@ -178,26 +209,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     // 변경 사항이 있으면 userinfo 테이블 업데이트
     if (changed) {
-      // 닉네임 업데이트
-      if (updatedFields.containsKey("username")) {
-        await supabase
-            .from('userinfo')
-            .update({'username': updatedFields["username"]}).eq('id', user.id);
-      }
-      // 상태메시지 업데이트
-      if (updatedFields.containsKey("status")) {
-        await supabase
-            .from('userinfo')
-            .update({'status': updatedFields["status"]}).eq('id', user.id);
-      }
-
-      // 이미지 경로가 업데이트 되었으면 avatar_url 업데이트 (옵션)
-      // 만약 user_list 등 다른 곳에서 avatar_url을 계속 사용한다면 여기서 업데이트
-      if (uploadedFilePath != null) {
-        await supabase
-            .from('userinfo')
-            .update({'avatar_url': uploadedFilePath}).eq('id', user.id);
-        debugPrint("Updated avatar_url in userinfo: $uploadedFilePath");
+      try {
+        // 닉네임 업데이트
+        if (updatedFields.containsKey("username")) {
+          await supabase
+              .from('userinfo')
+              .update({'username': updatedFields["username"]}).eq('id', user.id);
+        }
+        // 상태메시지 업데이트
+        if (updatedFields.containsKey("status")) {
+          await supabase
+              .from('userinfo')
+              .update({'status': updatedFields["status"]}).eq('id', user.id);
+        }
+      } catch (e) {
+         debugPrint('userinfo 업데이트 오류: $e');
+         if (!mounted) return;
+         showErrorDialog(context, '프로필 정보 업데이트 중 오류 발생: $e');
+         setState(() => _isLoading = false);
+         return;
       }
     } else {
       // 변경사항 없음 처리
@@ -215,7 +245,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('프로필이 수정되었습니다.')),
     );
-    Navigator.pop(context, true); // 변경되었음을 알리기 위해 true 반환 가능
+    Navigator.pop(context, true);
   }
 
   @override

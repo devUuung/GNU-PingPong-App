@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // rootBundle 사용을 위해 추가
 import '../utils/dialog_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login.dart';
@@ -63,7 +64,7 @@ class _SignUpPageState extends State<SignUpPage> {
           data: {
             'student_id': studentId,
             'phone': phone,
-            'name': name,
+            'username': name,
             'department': department,
           },
         );
@@ -73,6 +74,20 @@ class _SignUpPageState extends State<SignUpPage> {
           showErrorDialog(context, '회원가입에 실패했습니다.');
           return;
         }
+
+        // 회원가입 성공 후 기본 아바타 이미지 업로드
+        final userId = response.user!.id;
+        final ByteData imageData = await rootBundle.load('lib/assets/default_avatar.png');
+        final imageBytes = imageData.buffer.asUint8List();
+        final String filePath = 'public/$userId.png';
+
+        await supabase.storage.from('avatars').uploadBinary(
+          filePath,
+          imageBytes,
+          fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+        );
+        
+        debugPrint("Default avatar uploaded for user $userId");
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -84,6 +99,7 @@ class _SignUpPageState extends State<SignUpPage> {
         );
       } catch (e) {
         if (!mounted) return;
+        // 회원가입 또는 이미지 업로드 중 오류 발생
         showErrorDialog(context, '회원가입 중 오류가 발생했습니다: $e');
       } finally {
         if (mounted) {
@@ -123,9 +139,6 @@ class _SignUpPageState extends State<SignUpPage> {
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return '학번을 입력해주세요.';
-                  }
-                  if (!RegExp(r'^\d{9}$').hasMatch(value)) {
-                    return '올바른 학번 형식이 아닙니다 (9자리 숫자).';
                   }
                   return null;
                 },

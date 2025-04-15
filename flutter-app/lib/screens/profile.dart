@@ -45,21 +45,29 @@ class _MyInfoPageState extends State<MyInfoPage> {
   Future<void> _loadUserInfo() async {
     if (!mounted) return;
 
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       final User? user = supabase.auth.currentUser;
       if (user == null) {
+        setState(() { _isLoading = false; });
+        showErrorDialog(context, '로그인 정보가 없습니다.');
+        _hasShownError = true;
         return;
       }
 
       final response = await supabase
           .from('userinfo')
-          .select('*')
+          .select('*, notification_enabled')
           .eq('id', user.id)
           .single();
 
       if (!mounted) return;
       setState(() {
         _userInfo = response;
+        _alarmEnabled = response['notification_enabled'] ?? true;
         _isLoading = false;
       });
     } catch (e) {
@@ -81,6 +89,26 @@ class _MyInfoPageState extends State<MyInfoPage> {
         _loadUserInfo();
       }
     });
+  }
+
+  Future<void> _updateNotificationSetting(bool enabled) async {
+    final User? user = supabase.auth.currentUser;
+    if (user == null) {
+      showErrorDialog(context, '사용자 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    try {
+      await supabase
+          .from('userinfo')
+          .update({'notification_enabled': enabled})
+          .eq('id', user.id);
+      if (!mounted) return;
+      debugPrint('알림 설정 업데이트 성공: $enabled');
+    } catch (e) {
+      if (!mounted) return;
+      showErrorDialog(context, '알림 설정 업데이트 중 오류 발생: $e');
+    }
   }
 
   @override
@@ -124,13 +152,14 @@ class _MyInfoPageState extends State<MyInfoPage> {
                           onTap: () => _onEditProfile(context),
                         ),
                         SettingsListItem(
-                          title: '모집공고 알람 듣기(미구현)',
+                          title: '모집공고 알람 듣기',
                           isToggle: true,
                           toggleValue: _alarmEnabled,
                           onToggleChanged: (bool val) {
                             setState(() {
                               _alarmEnabled = val;
                             });
+                            _updateNotificationSetting(val);
                             debugPrint('모집공고 알림 설정: $_alarmEnabled');
                           },
                         ),
@@ -138,7 +167,6 @@ class _MyInfoPageState extends State<MyInfoPage> {
                           title: '로그아웃',
                           onTap: () => _signOut(),
                         ),
-                        const SettingsListItem(title: '그 외 항목2'),
                       ],
                     ),
                   ),

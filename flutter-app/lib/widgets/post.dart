@@ -66,24 +66,127 @@ class _PostState extends State<Post> {
 
   // 모집공고 참가 취소
   Future<void> _leavePost(String postId) async {
-    await supabase.from('post_participant').delete().eq('post_id', postId);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('모집공고 참가를 취소했습니다.')),
-    );
-    _fetchPosts();
+    if (_currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요합니다.')),
+      );
+      return;
+    }
+
+    try {
+      // 1. 현재 게시글의 users 리스트 가져오기
+      final postData = await supabase
+          .from('post')
+          .select('users')
+          .eq('id', postId)
+          .single();
+
+      final List<dynamic> currentUsers = List<dynamic>.from(postData['users'] ?? []);
+      final originalUsersCount = currentUsers.length;
+
+      // 2. 현재 사용자 ID 제거
+      final bool removed = currentUsers.remove(_currentUserId);
+
+      // 3. 업데이트된 users 리스트로 post 테이블 업데이트
+      // 실제로 제거되었을 때만 업데이트 시도
+      if (removed) {
+        await supabase
+            .from('post')
+            .update({'users': currentUsers})
+            .eq('id', postId);
+      } else {
+         // 사용자가 참가 목록에 없거나 변경사항이 없는 경우
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('참가 중이지 않습니다.')),
+        );
+        return; // 업데이트 불필요
+      }
+
+      // 4. DB 업데이트 성공 후 목록 새로고침
+       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('모집공고 참가를 취소했습니다.')),
+        );
+        _fetchPosts(); // 목록 새로고침
+       }
+    } catch (e) {
+      debugPrint("Error leaving post: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('참가 취소 중 오류 발생: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _participatePost(String postId) async {
-    await supabase.from('post_participant').insert({
-      'post_id': postId,
-      'user_id': _currentUserId,
-    });
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('모집공고에 참가했습니다.')),
-    );
-    _fetchPosts();
+    if (_currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요합니다.')),
+      );
+      return;
+    }
+
+    try {
+      // 1. 현재 게시글의 users 리스트와 max_user 가져오기
+      final postData = await supabase
+          .from('post')
+          .select('users, max_user')  // max_user도 함께 조회
+          .eq('id', postId)
+          .single();
+
+      final List<dynamic> currentUsers = List<dynamic>.from(postData['users'] ?? []);
+      final int participantCount = currentUsers.length;
+      final int maxUser = postData['max_user'] as int? ?? 0;
+      
+      // 최대 인원 체크
+      if (participantCount >= maxUser) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('이미 최대 인원에 도달했습니다.')),
+          );
+        }
+        return;
+      }
+
+      final originalUsersCount = currentUsers.length;
+
+      // 2. 현재 사용자 ID 추가 (중복 방지)
+      if (!currentUsers.contains(_currentUserId)) {
+        currentUsers.add(_currentUserId);
+      }
+
+      // 3. 업데이트된 users 리스트로 post 테이블 업데이트
+      // 변경사항이 있을 때만 업데이트 시도
+      if (currentUsers.length > originalUsersCount) {
+         await supabase
+            .from('post')
+            .update({'users': currentUsers})
+            .eq('id', postId);
+      } else {
+        // 이미 참여 중이거나 변경사항이 없는 경우
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('이미 참여 중입니다.')),
+        );
+        return; // 업데이트 불필요
+      }
+
+      // 4. DB 업데이트 성공 후 목록 새로고침
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('모집공고에 참가했습니다.')),
+        );
+        _fetchPosts(); // 전체 목록 다시 로드
+      }
+
+    } catch (e) {
+      debugPrint("Error participating post: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('참가 중 오류 발생: $e')),
+        );
+      }
+    }
   }
 
   /// 삭제 확인 다이얼로그 표시 후, '예' 선택 시 Post 삭제 처리
@@ -118,8 +221,7 @@ class _PostState extends State<Post> {
   bool _isParticipant(Map<String, dynamic> post) {
     if (_currentUserId == null) return false;
 
-    // 참가자 목록을 가져오기 위해 API 호출이 필요할 수 있음
-    // 현재는 간단하게 작성자인 경우만 참가자로 간주
+    // post 테이블의 'users' 목록에서 현재 사용자 ID 확인
     final List<dynamic> participants = post['users'] as List<dynamic>? ?? [];
     return participants.contains(_currentUserId);
   }
