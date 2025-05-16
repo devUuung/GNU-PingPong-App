@@ -67,7 +67,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (!mounted) return;
       setState(() {
         _initialNickname = userInfo['username'] ?? '';
-        _initialStatusMsg = userInfo['status_message'] ?? '';
+        // DB 컬럼 이름은 'status'로 통일되어 있으므로 해당 필드 사용
+        _initialStatusMsg = userInfo['status'] ?? '';
         _userId = user.id;
         _nicknameController.text = _initialNickname;
         _statusMessageController.text = _initialStatusMsg;
