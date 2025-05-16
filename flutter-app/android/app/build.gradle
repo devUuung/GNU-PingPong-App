@@ -5,6 +5,13 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+// 키스토어 속성 불러오기
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.pingpong.gnu.app"
     compileSdk = flutter.compileSdkVersion
@@ -28,15 +35,46 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // 멀티덱스 활성화
+        multiDexEnabled true
+    }
+
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword']
+        }
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            // 릴리스 서명 설정 적용
+            signingConfig signingConfigs.release
+            
+            // 난독화 활성화 (문제 원인 분석을 위해)
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            
+            // 난독화 비활성화 코드
+            // minifyEnabled false
+            // shrinkResources false
         }
     }
+}
+
+dependencies {
+    // 멀티덱스 지원 추가
+    implementation 'androidx.multidex:multidex:2.0.1'
+    
+    // Play Core 라이브러리 대신 분할된 호환 모듈 사용
+    // Play Core는 deprecated 되었고 Android 14와 호환되지 않음
+    implementation 'com.google.android.play:app-update:2.1.0'
+    implementation 'com.google.android.play:review:2.0.1'
+    implementation 'com.google.android.play:feature-delivery:2.1.0'
 }
 
 flutter {

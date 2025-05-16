@@ -5,6 +5,7 @@ import '../widgets/app_bar.dart';
 import '../widgets/favorite_users_widget.dart';
 import '../widgets/post.dart';
 import '../screens/post_create.dart';
+import '../main.dart'; // saveFcmTokenToSupabase 함수를 사용하기 위해 import
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,6 +16,13 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // HomePage가 로드될 때 FCM 토큰 저장 시도
+    saveFcmTokenToSupabase();
+  }
 
   @override
   Widget build(BuildContext context) {

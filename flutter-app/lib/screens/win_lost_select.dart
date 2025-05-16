@@ -7,8 +7,8 @@ final supabase = Supabase.instance.client;
 class WinLoseSelect extends StatefulWidget {
   final String myName;
   final String otherName;
-  final int myId;
-  final int otherId;
+  final String myId;
+  final String otherId;
 
   const WinLoseSelect({
     super.key,
@@ -28,34 +28,47 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // AppBar
-      appBar: AppBar(
-        title: const Text('둘 중 누가 이겼나요?'),
-        centerTitle: true,
-        backgroundColor: const Color(0xFFFEF7FF),
-        elevation: 0,
-      ),
-      backgroundColor: const Color(0xFFFEF7FF),
-      body: SafeArea(
-        child: Center(
-          child: _buildNameButtons(context),
-        ),
-      ),
-      // 하단 확인 버튼
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        child: ElevatedButton(
-          onPressed: _winnerTag == null
-              ? null
-              : () async {
-                  await _onConfirm();
-                },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _winnerTag == null ? Colors.grey : Colors.blue,
-            minimumSize: const Size(double.infinity, 48),
+    return WillPopScope(
+      onWillPop: () async {
+        // 뒤로 가기 버튼 누를 때 매칭 요청 취소하지 않음
+        // 사용자가 경기 입력을 계속할 수 있도록 함
+        return true;
+      },
+      child: Scaffold(
+        // AppBar
+        appBar: AppBar(
+          title: const Text('둘 중 누가 이겼나요?'),
+          centerTitle: true,
+          backgroundColor: const Color(0xFFFEF7FF),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
           ),
-          child: const Text('확인'),
+        ),
+        backgroundColor: const Color(0xFFFEF7FF),
+        body: SafeArea(
+          child: Center(
+            child: _buildNameButtons(context),
+          ),
+        ),
+        // 하단 확인 버튼
+        bottomNavigationBar: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          child: ElevatedButton(
+            onPressed: _winnerTag == null
+                ? null
+                : () async {
+                    await _onConfirm();
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _winnerTag == null ? Colors.grey : Colors.blue,
+              minimumSize: const Size(double.infinity, 48),
+            ),
+            child: const Text('확인'),
+          ),
         ),
       ),
     );
@@ -97,8 +110,8 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
 
   /// '확인' 버튼 누르면 실행되는 로직
   Future<void> _onConfirm() async {
-    final winnerId = _winnerTag == 'myName' ? widget.myId : widget.otherId;
-    final loserId = _winnerTag == 'myName' ? widget.otherId : widget.myId;
+    final String winnerId = _winnerTag == 'myName' ? widget.myId : widget.otherId;
+    final String loserId = _winnerTag == 'myName' ? widget.otherId : widget.myId;
     const plusScore = 1;
     const minusScore = 1;
 
@@ -110,22 +123,42 @@ class _WinLoseSelectState extends State<WinLoseSelect> {
         'winner_name':
             _winnerTag == 'myName' ? widget.myName : widget.otherName,
         'loser_name': _winnerTag == 'myName' ? widget.otherName : widget.myName,
+        'win_score': plusScore,
+        'lose_score': minusScore,
       });
 
-      // 승자 점수 업데이트
-      await supabase.rpc('update_user_score', params: {
-        'user_id': winnerId,
-        'score_change': plusScore,
-      });
+      // 승자와 패자의 현재 정보 가져오기
+      final winnerData = await supabase
+          .from('userinfo')
+          .select('score, win_count, game_count')
+          .eq('id', winnerId)
+          .single();
+      
+      final loserData = await supabase
+          .from('userinfo')
+          .select('score, lose_count, game_count')
+          .eq('id', loserId)
+          .single();
 
-      // 패자 점수 업데이트
-      await supabase.rpc('update_user_score', params: {
-        'user_id': loserId,
-        'score_change': -minusScore,
-      });
+      // 승자 점수 및 기록 업데이트 (RPC 대신 직접 업데이트)
+      await supabase.from('userinfo').update({
+        'score': (winnerData['score'] ?? 1000) + plusScore,
+        'win_count': (winnerData['win_count'] ?? 0) + 1,
+        'game_count': (winnerData['game_count'] ?? 0) + 1
+      }).eq('id', winnerId);
 
-      // 매칭 요청 취소
-      await supabase.from('match_requests').delete().eq('user_id', widget.myId);
+      // 패자 점수 및 기록 업데이트 (RPC 대신 직접 업데이트)
+      await supabase.from('userinfo').update({
+        'score': (loserData['score'] ?? 1000) - minusScore,
+        'lose_count': (loserData['lose_count'] ?? 0) + 1,
+        'game_count': (loserData['game_count'] ?? 0) + 1
+      }).eq('id', loserId);
+
+      // 매칭 요청 삭제 (RPC 함수 대신 직접 삭제)
+      await supabase
+          .from('match')
+          .delete()
+          .eq('user_id', widget.myId);
 
       if (!mounted) return;
       Navigator.pushReplacement(

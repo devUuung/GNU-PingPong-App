@@ -12,9 +12,9 @@ class FindUserPage extends StatefulWidget {
   State<FindUserPage> createState() => _FindUserPageState();
 }
 
-class _FindUserPageState extends State<FindUserPage> {
+class _FindUserPageState extends State<FindUserPage> with WidgetsBindingObserver {
   List<dynamic> _matchUsers = [];
-  bool _isLoading = false;
+  bool _isLoading = true;
   bool _isRequestingMatch = false;
   Timer? _refreshTimer;
   Map<String, dynamic>? _userInfo;
@@ -22,8 +22,25 @@ class _FindUserPageState extends State<FindUserPage> {
   @override
   void initState() {
     super.initState();
-    _loadUserInfo();
-    _checkMatchStatus();
+    WidgetsBinding.instance.addObserver(this);
+    _initializeMatchingProcess();
+  }
+
+  Future<void> _initializeMatchingProcess() async {
+    await _loadUserInfo();
+    await _checkMatchStatus();
+    
+    if (!_isRequestingMatch) {
+      await _startMatchRequest();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || 
+        state == AppLifecycleState.detached) {
+      _cancelMatchRequest();
+    }
   }
 
   Future<void> _loadUserInfo() async {
@@ -49,6 +66,7 @@ class _FindUserPageState extends State<FindUserPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (_isRequestingMatch) {
       _cancelMatchRequest();
     }
@@ -58,21 +76,18 @@ class _FindUserPageState extends State<FindUserPage> {
 
   Future<void> _checkMatchStatus() async {
     if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-    });
-
+    
     try {
       final user = supabase.auth.currentUser;
       if (user == null) return;
 
-      final myRequest = await supabase
-          .from('match_requests')
+      final myMatches = await supabase
+          .from('match')
           .select('*')
           .eq('user_id', user.id)
-          .single();
+          .order('created_at', ascending: false);
 
-      if (myRequest.isNotEmpty && mounted) {
+      if (myMatches.isNotEmpty && mounted) {
         setState(() {
           _isRequestingMatch = true;
         });
@@ -101,18 +116,41 @@ class _FindUserPageState extends State<FindUserPage> {
   Future<void> _startMatchRequest() async {
     if (_isRequestingMatch) return;
 
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
       final user = supabase.auth.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        debugPrint('사용자가 로그인되어 있지 않습니다.');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('로그인이 필요합니다. 다시 로그인해 주세요.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
 
-      await supabase.from('match_requests').insert({
-        'user_id': user.id,
-        'created_at': DateTime.now().toIso8601String(),
+      // 세션 확인
+      final session = supabase.auth.currentSession;
+      if (session == null || session.isExpired) {
+        debugPrint('세션이 만료되었습니다. 재로그인이 필요합니다.');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      debugPrint('Supabase 인증 상태: ${user.id}');
+      
+      // 직접 RPC 함수를 통해 데이터 삽입 시도
+      await supabase.rpc('insert_match', params: {
+        'user_uuid': user.id,
       });
 
       if (mounted) {
@@ -122,14 +160,6 @@ class _FindUserPageState extends State<FindUserPage> {
 
         await _loadMatchRequests();
         _startRefreshTimer();
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('경기 입력 상태가 시작되었습니다.'),
-            duration: Duration(seconds: 2),
-          ),
-        );
       }
     } catch (e) {
       debugPrint('매칭 요청 시작 중 오류: $e');
@@ -151,16 +181,26 @@ class _FindUserPageState extends State<FindUserPage> {
   }
 
   Future<void> _cancelMatchRequest() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
       final user = supabase.auth.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        debugPrint('사용자가 로그인되어 있지 않습니다.');
+        return;
+      }
 
-      await supabase.from('match_requests').delete().eq('user_id', user.id);
+      // 세션 확인
+      final session = supabase.auth.currentSession;
+      if (session == null || session.isExpired) {
+        debugPrint('세션이 만료되었습니다.');
+        return;
+      }
+
+      debugPrint('매칭 요청 취소 시도: ${user.id}');
+      
+      // 직접 RPC 함수를 통해 데이터 삭제 시도
+      await supabase.rpc('delete_match', params: {
+        'user_uuid': user.id,
+      });
 
       if (mounted) {
         setState(() {
@@ -168,13 +208,6 @@ class _FindUserPageState extends State<FindUserPage> {
           _matchUsers = [];
         });
         _refreshTimer?.cancel();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('경기 입력 상태가 취소되었습니다.'),
-            duration: Duration(seconds: 2),
-          ),
-        );
       }
     } catch (e) {
       debugPrint('매칭 요청 취소 중 오류: $e');
@@ -186,18 +219,12 @@ class _FindUserPageState extends State<FindUserPage> {
           ),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
 
   void _startRefreshTimer() {
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (_isRequestingMatch && mounted) {
         _loadMatchRequests();
       }
@@ -221,13 +248,19 @@ class _FindUserPageState extends State<FindUserPage> {
         if (user == null) return;
 
         final response = await supabase
-            .from('match_requests')
+            .from('match')
             .select('*, userinfo(*)')
             .neq('user_id', user.id);
 
+        debugPrint('Fetched match users data: $response');
+
         if (mounted) {
           setState(() {
-            _matchUsers = response.map((req) => req['userinfo']).toList();
+            _matchUsers = response.map((req) {
+              final userInfo = req['userinfo'];
+              debugPrint('Processing userinfo: $userInfo');
+              return userInfo;
+            }).toList();
             _isLoading = false;
           });
         }
@@ -262,83 +295,46 @@ class _FindUserPageState extends State<FindUserPage> {
   }
 
   Future<void> _handleRefresh() async {
-    if (_isRequestingMatch) {
-      await _loadMatchRequests();
-    }
+    await _loadMatchRequests();
     return Future.value();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
+    return WillPopScope(
+      onWillPop: () async {
+        await _cancelMatchRequest();
+        return true;
+      },
+      child: Scaffold(
         appBar: AppBar(
-          title: const Text('주변 사람 찾는중..'),
+          title: const Text('경기 입력하기'),
           centerTitle: true,
           elevation: 0,
           backgroundColor: const Color(0xFFFEF7FF),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              _cancelMatchRequest();
+              Navigator.of(context).pop();
+            },
           ),
         ),
         backgroundColor: const Color(0xFFFEF7FF),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isRequestingMatch ? '매칭 대기중..' : '경기 입력하기'),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: const Color(0xFFFEF7FF),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(_isRequestingMatch
-                ? Icons.cancel_outlined
-                : Icons.sports_tennis),
-            onPressed: _isLoading
-                ? null
-                : (_isRequestingMatch
-                    ? _cancelMatchRequest
-                    : _startMatchRequest),
-            tooltip: _isRequestingMatch ? '경기 입력 상태 취소' : '경기 입력 상태 시작',
-          ),
-        ],
-      ),
-      backgroundColor: const Color(0xFFFEF7FF),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _handleRefresh,
-          child: Container(
-            color: const Color(0xFFFEF7FF),
-            child: Column(
-              children: [
-                if (_isLoading)
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        const Text('매칭 가능한 사용자 검색 중...'),
-                      ],
+        body: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: _handleRefresh,
+            child: Container(
+              color: const Color(0xFFFEF7FF),
+              child: Column(
+                children: [
+                  if (_isLoading)
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Center(
+                        child: CircularProgressIndicator(),
+                      ),
                     ),
-                  ),
-                if (_isRequestingMatch)
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Container(
@@ -348,7 +344,6 @@ class _FindUserPageState extends State<FindUserPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(
-                        '경기 입력 상태가 활성화되었습니다.\n'
                         '화면을 아래로 당겨 새로고침하여 다른 사용자를 찾을 수 있습니다.\n'
                         '게임 상대를 선택하여 경기를 입력해보세요!',
                         textAlign: TextAlign.center,
@@ -356,83 +351,49 @@ class _FindUserPageState extends State<FindUserPage> {
                       ),
                     ),
                   ),
-                if (!_isRequestingMatch)
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.sports_tennis,
-                            size: 80,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            '경기 입력을 시작하려면\n오른쪽 상단의 버튼을 눌러주세요.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 16),
-                          ),
-                          const SizedBox(height: 24),
-                          ElevatedButton.icon(
-                            onPressed: _startMatchRequest,
-                            icon: const Icon(Icons.play_arrow),
-                            label: const Text('경기 입력 시작'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 12),
-                              textStyle: const TextStyle(fontSize: 16),
-                            ),
-                          ),
-                        ],
+                  if (_matchUsers.isEmpty && !_isLoading)
+                    const Expanded(
+                      child: Center(
+                        child: Text(
+                          '현재 경기 입력 중인 다른 사용자가 없습니다.\n'
+                          '화면을 아래로 당겨 새로고침 해보세요.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 16),
+                        ),
                       ),
                     ),
-                  ),
-                if (_matchUsers.isEmpty && _isRequestingMatch)
-                  const Expanded(
-                    child: Center(
-                      child: Text(
-                        '현재 경기 입력 중인 다른 사용자가 없습니다.\n'
-                        '잠시 후 다시 시도해보세요.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16),
-                      ),
-                    ),
-                  ),
-                if (_matchUsers.isNotEmpty)
-                  Expanded(
-                    child: GridView.builder(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 16, horizontal: 16),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 20,
-                        mainAxisSpacing: 20,
-                      ),
-                      itemCount: _matchUsers.length,
-                      itemBuilder: (context, index) {
-                        final student = _matchUsers[index];
-                        final String studentName =
-                            student['username'] ?? '이름없음';
-                        final int userId = student['id'] ?? 0;
-                        final String myName = _userInfo?['username'] ?? '';
-                        final int myUserId = _userInfo?['id'] ?? 0;
-                        final String? profileImage =
-                            student['profile_image_url'];
+                  if (_matchUsers.isNotEmpty)
+                    Expanded(
+                      child: GridView.builder(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 16, horizontal: 16),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 20,
+                          mainAxisSpacing: 20,
+                        ),
+                        itemCount: _matchUsers.length,
+                        itemBuilder: (context, index) {
+                          final student = _matchUsers[index];
+                          final String studentName =
+                              student['username'] ?? '이름없음';
+                          final String userId = student['id'] ?? '';
+                          final String myName = _userInfo?['username'] ?? '';
+                          final String myUserId = _userInfo?['id'] ?? '';
 
-                        return _buildStudentItem(
-                          context,
-                          myName,
-                          myUserId,
-                          studentName,
-                          userId,
-                          profileImage,
-                        );
-                      },
+                          return _buildStudentItem(
+                            context,
+                            myName,
+                            myUserId,
+                            studentName,
+                            userId,
+                          );
+                        },
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -443,10 +404,9 @@ class _FindUserPageState extends State<FindUserPage> {
   Widget _buildStudentItem(
     BuildContext context,
     String myName,
-    int myUserId,
+    String myUserId,
     String otherName,
-    int otherUserId,
-    String? profileImageUrl,
+    String otherUserId,
   ) {
     return GestureDetector(
       onTap: () {
@@ -461,7 +421,9 @@ class _FindUserPageState extends State<FindUserPage> {
               myId: myUserId,
             ),
           ),
-        );
+        ).then((_) {
+          _checkMatchStatus();
+        });
       },
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -475,15 +437,59 @@ class _FindUserPageState extends State<FindUserPage> {
                 color: Colors.grey[200],
                 borderRadius: BorderRadius.circular(30),
               ),
-              child: profileImageUrl != null && profileImageUrl.isNotEmpty
-                  ? Image.network(
-                      profileImageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.person_outline,
-                        size: 60,
-                        color: Colors.black54,
-                      ),
+              child: (otherUserId.isNotEmpty)
+                  ? FutureBuilder<String>(
+                      future: () {
+                        final imagePath = 'public/$otherUserId.png';
+                        debugPrint("프로필 이미지 경로: $imagePath");
+                        return supabase.storage
+                            .from('avatars')
+                            .createSignedUrl(imagePath, 60);
+                      }(),
+                      builder: (context, snapshot) {
+                        debugPrint(
+                            "FutureBuilder 상태: ${snapshot.connectionState}, 데이터있음: ${snapshot.hasData}, 에러있음: ${snapshot.hasError}");
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2));
+                        }
+                        if (snapshot.hasError ||
+                            !snapshot.hasData ||
+                            snapshot.data!.isEmpty) {
+                          debugPrint("이미지 URL 에러 또는 없음: ${snapshot.error}");
+                          return const Icon(
+                            Icons.person_outline,
+                            size: 60,
+                            color: Colors.black54,
+                          );
+                        }
+                        final imageUrl = snapshot.data!;
+                        debugPrint("이미지 URL: $imageUrl");
+                        return Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                                strokeWidth: 2,
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            debugPrint("이미지 로드 에러: $error");
+                            return const Icon(
+                              Icons.person_outline,
+                              size: 60,
+                              color: Colors.black54,
+                            );
+                          },
+                        );
+                      },
                     )
                   : const Icon(
                       Icons.person_outline,

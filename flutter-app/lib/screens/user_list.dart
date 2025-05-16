@@ -66,6 +66,10 @@ class _UserListPageState extends State<UserListPage> {
         _users = users;
         _isLoading = false;
       });
+      
+      // 필터에 따라 사용자 목록을 정렬합니다
+      _sortUsersByFilter();
+      
       debugPrint(
           "_loadUsers completed. User count: ${_users.length}"); // _loadUsers 완료 및 사용자 수 로그
     } catch (e) {
@@ -75,6 +79,39 @@ class _UserListPageState extends State<UserListPage> {
         _isLoading = false;
       });
     }
+  }
+  
+  /// 필터 기준에 따라 사용자 목록을 정렬합니다.
+  void _sortUsersByFilter() {
+    if (!mounted) return;
+    
+    setState(() {
+      _users.sort((a, b) {
+        // 내림차순 정렬 (높은 값이 위로)
+        switch (selectedFilter) {
+          case '점수':
+            return (b['score'] ?? 0).compareTo(a['score'] ?? 0);
+          case '게임 수':
+            return (b['game_count'] ?? 0).compareTo(a['game_count'] ?? 0);
+          case '승리 수':
+            return (b['win_count'] ?? 0).compareTo(a['win_count'] ?? 0);
+          case '패배 수':
+            return (b['lose_count'] ?? 0).compareTo(a['lose_count'] ?? 0);
+          case '점수 폭':
+            int aScoreDiff = (a['score'] ?? 1000) - (a['init_score'] ?? 1000);
+            int bScoreDiff = (b['score'] ?? 1000) - (b['init_score'] ?? 1000);
+            return bScoreDiff.compareTo(aScoreDiff);
+          case '승률':
+            double aWinRate = a['game_count'] > 0 
+                ? (a['win_count'] / a['game_count']) * 100 : 0;
+            double bWinRate = b['game_count'] > 0 
+                ? (b['win_count'] / b['game_count']) * 100 : 0;
+            return bWinRate.compareTo(aWinRate);
+          default:
+            return (b['score'] ?? 0).compareTo(a['score'] ?? 0);
+        }
+      });
+    });
   }
 
   /// 선택된 필터에 따라 유저 객체에서 표시할 값을 반환합니다.
@@ -399,7 +436,8 @@ class _UserListPageState extends State<UserListPage> {
       onTap: () {
         setState(() {
           selectedFilter = label;
-          // 필터 변경 시 원하는 추가 로직 수행
+          // 필터 변경 시 정렬 적용
+          _sortUsersByFilter();
           debugPrint('필터 "$label" 클릭됨');
         });
       },

@@ -4,6 +4,7 @@ import 'signup.dart';
 import '../utils/dialog_utils.dart';
 import '../widgets/common/loading_indicator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -35,11 +36,38 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      await supabase.auth.signOut();
+      // 현재 세션 확인
       final session = supabase.auth.currentSession;
-
+      
+      // 세션이 있으면 홈 화면으로 이동
       if (session != null && mounted) {
         _goHome();
+        return;
+      }
+      
+      // 저장된 로그인 정보가 있으면 자동 로그인 시도
+      final prefs = await SharedPreferences.getInstance();
+      final savedStudentId = prefs.getString('studentId');
+      final savedPassword = prefs.getString('password');
+      
+      if (savedStudentId != null && savedPassword != null && mounted) {
+        // 저장된 정보로 자동 로그인 시도
+        final email = '$savedStudentId@gnu.ac.kr';
+        
+        try {
+          final response = await supabase.auth.signInWithPassword(
+            email: email,
+            password: savedPassword,
+          );
+          
+          if (response.session != null && mounted) {
+            _goHome();
+            return;
+          }
+        } catch (e) {
+          // 자동 로그인 실패 - 저장된 정보 삭제
+          await _clearSavedCredentials();
+        }
       }
     } finally {
       if (mounted) {
@@ -48,6 +76,13 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
     }
+  }
+
+  // 저장된 로그인 정보 삭제
+  Future<void> _clearSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('studentId');
+    await prefs.remove('password');
   }
 
   Future<void> _login() async {
@@ -86,6 +121,11 @@ class _LoginPageState extends State<LoginPage> {
         showErrorDialog(context, '로그인 정보가 틀렸습니다.');
         return;
       }
+
+      // 항상 로그인 정보 저장 (자동 로그인)
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('studentId', studentId);
+      await prefs.setString('password', password);
 
       if (mounted) {
         _goHome();
