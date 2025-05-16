@@ -252,9 +252,15 @@ class _FindUserPageState extends State<FindUserPage> with WidgetsBindingObserver
             .select('*, userinfo(*)')
             .neq('user_id', user.id);
 
+        debugPrint('Fetched match users data: $response');
+
         if (mounted) {
           setState(() {
-            _matchUsers = response.map((req) => req['userinfo']).toList();
+            _matchUsers = response.map((req) {
+              final userInfo = req['userinfo'];
+              debugPrint('Processing userinfo: $userInfo');
+              return userInfo;
+            }).toList();
             _isLoading = false;
           });
         }
@@ -372,11 +378,9 @@ class _FindUserPageState extends State<FindUserPage> with WidgetsBindingObserver
                           final student = _matchUsers[index];
                           final String studentName =
                               student['username'] ?? '이름없음';
-                          final int userId = student['id'] ?? 0;
+                          final String userId = student['id'] ?? '';
                           final String myName = _userInfo?['username'] ?? '';
-                          final int myUserId = _userInfo?['id'] ?? 0;
-                          final String? profileImage =
-                              student['profile_image_url'];
+                          final String myUserId = _userInfo?['id'] ?? '';
 
                           return _buildStudentItem(
                             context,
@@ -384,7 +388,6 @@ class _FindUserPageState extends State<FindUserPage> with WidgetsBindingObserver
                             myUserId,
                             studentName,
                             userId,
-                            profileImage,
                           );
                         },
                       ),
@@ -401,10 +404,9 @@ class _FindUserPageState extends State<FindUserPage> with WidgetsBindingObserver
   Widget _buildStudentItem(
     BuildContext context,
     String myName,
-    int myUserId,
+    String myUserId,
     String otherName,
-    int otherUserId,
-    String? profileImageUrl,
+    String otherUserId,
   ) {
     return GestureDetector(
       onTap: () {
@@ -435,15 +437,59 @@ class _FindUserPageState extends State<FindUserPage> with WidgetsBindingObserver
                 color: Colors.grey[200],
                 borderRadius: BorderRadius.circular(30),
               ),
-              child: profileImageUrl != null && profileImageUrl.isNotEmpty
-                  ? Image.network(
-                      profileImageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.person_outline,
-                        size: 60,
-                        color: Colors.black54,
-                      ),
+              child: (otherUserId.isNotEmpty)
+                  ? FutureBuilder<String>(
+                      future: () {
+                        final imagePath = 'public/$otherUserId.png';
+                        debugPrint("프로필 이미지 경로: $imagePath");
+                        return supabase.storage
+                            .from('avatars')
+                            .createSignedUrl(imagePath, 60);
+                      }(),
+                      builder: (context, snapshot) {
+                        debugPrint(
+                            "FutureBuilder 상태: ${snapshot.connectionState}, 데이터있음: ${snapshot.hasData}, 에러있음: ${snapshot.hasError}");
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2));
+                        }
+                        if (snapshot.hasError ||
+                            !snapshot.hasData ||
+                            snapshot.data!.isEmpty) {
+                          debugPrint("이미지 URL 에러 또는 없음: ${snapshot.error}");
+                          return const Icon(
+                            Icons.person_outline,
+                            size: 60,
+                            color: Colors.black54,
+                          );
+                        }
+                        final imageUrl = snapshot.data!;
+                        debugPrint("이미지 URL: $imageUrl");
+                        return Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                                strokeWidth: 2,
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            debugPrint("이미지 로드 에러: $error");
+                            return const Icon(
+                              Icons.person_outline,
+                              size: 60,
+                              color: Colors.black54,
+                            );
+                          },
+                        );
+                      },
                     )
                   : const Icon(
                       Icons.person_outline,

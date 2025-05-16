@@ -20,7 +20,6 @@ class _LoginPageState extends State<LoginPage> {
   final _studentIdController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  bool _rememberMe = true; // 자동 로그인 옵션 (기본값: 활성화)
 
   @override
   void initState() {
@@ -46,7 +45,7 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
       
-      // 세션이 없지만 저장된 로그인 정보가 있으면 자동 로그인 시도
+      // 저장된 로그인 정보가 있으면 자동 로그인 시도
       final prefs = await SharedPreferences.getInstance();
       final savedStudentId = prefs.getString('studentId');
       final savedPassword = prefs.getString('password');
@@ -67,8 +66,7 @@ class _LoginPageState extends State<LoginPage> {
           }
         } catch (e) {
           // 자동 로그인 실패 - 저장된 정보 삭제
-          await prefs.remove('studentId');
-          await prefs.remove('password');
+          await _clearSavedCredentials();
         }
       }
     } finally {
@@ -78,6 +76,13 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
     }
+  }
+
+  // 저장된 로그인 정보 삭제
+  Future<void> _clearSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('studentId');
+    await prefs.remove('password');
   }
 
   Future<void> _login() async {
@@ -117,12 +122,10 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // 자동 로그인 설정이 켜져 있으면 로그인 정보 저장
-      if (_rememberMe) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('studentId', studentId);
-        await prefs.setString('password', password);
-      }
+      // 항상 로그인 정보 저장 (자동 로그인)
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('studentId', studentId);
+      await prefs.setString('password', password);
 
       if (mounted) {
         _goHome();
@@ -179,22 +182,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     obscureText: true,
                   ),
-                  const SizedBox(height: 8),
-                  // 자동 로그인 체크박스
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _rememberMe,
-                        onChanged: (value) {
-                          setState(() {
-                            _rememberMe = value ?? false;
-                          });
-                        },
-                      ),
-                      const Text('자동 로그인'),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   // 로그인 버튼
                   SizedBox(
                     width: double.infinity,

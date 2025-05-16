@@ -140,9 +140,9 @@ class _MyInfoPageState extends State<MyInfoPage> {
                         InfoRow(
                             label: '학번', value: '${_userInfo!['student_id']}'),
                         InfoRow(
-                            label: '부수 / 승점',
+                            label: '부수',
                             value:
-                                '${_userInfo!['rank']}부 / ${_userInfo!['custom_point']}'),
+                                '${_userInfo!['rank']}부'),
                         SettingsListItem(
                           title: '비밀번호 재설정',
                           onTap: () => _onChangePassword(context),

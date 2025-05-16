@@ -17,19 +17,21 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 // Supabase 클라이언트 인스턴스
 final supabase = Supabase.instance.client;
 
+// FCM 토큰을 Supabase에 저장하는 함수
+// 오류가 발생해도 앱 실행에 영향을 주지 않도록 수정
 Future<void> saveFcmTokenToSupabase() async {
-  if (Firebase.apps.isEmpty) {
-    debugPrint('Firebase 앱이 아직 초기화되지 않았습니다.');
-    return;
-  }
-  
-  final user = supabase.auth.currentUser;
-  if (user == null) {
-    debugPrint('FCM 토큰 저장: 로그인된 사용자가 없습니다.');
-    return;
-  }
-
   try {
+    if (Firebase.apps.isEmpty) {
+      debugPrint('Firebase 앱이 아직 초기화되지 않았습니다.');
+      return;
+    }
+    
+    final user = supabase.auth.currentUser;
+    if (user == null) {
+      debugPrint('FCM 토큰 저장: 로그인된 사용자가 없습니다.');
+      return;
+    }
+
     // iOS 권한 요청 코드 활성화 (주석 해제)
     NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
@@ -63,65 +65,85 @@ Future<void> saveFcmTokenToSupabase() async {
         .eq('id', user.id);
 
     debugPrint('FCM 토큰 저장 성공 (사용자 ID: ${user.id})');
-
   } catch (e) {
     // 오류 발생 시 스택 트레이스도 출력하여 더 자세한 정보 확인
     debugPrint('FCM 토큰 저장 중 오류 발생: $e');
     debugPrintStack(); // 스택 트레이스 출력 추가
+    // 오류가 발생해도 앱 실행을 계속합니다
   }
 }
 
+// 앱 시작 시 초기화 코드
 void main() async {
+  // 전역 에러 핸들러 설정
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('Flutter 오류 발생: ${details.exception}');
+    // 앱 실행은 계속됨
+  };
+
   // Flutter 엔진이 위젯을 바인딩하기 전에 플러그인 초기화 보장
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-    debugPrint('Firebase.initializeApp() 완료됨'); // 완료 로그 추가
-  } catch (e) {
-    debugPrint('Firebase 초기화 중 오류 발생: $e');
-    // 초기화 실패 시 앱 실행 중단 또는 다른 처리 필요
-    return;
-  }
-
+  
   // 앱의 화면 방향을 세로 모드로 고정 (상하 반전 포함)
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  await dotenv.load(fileName: '.env');
+  // 환경 변수 로드
+  bool envLoaded = false;
+  try {
+    await dotenv.load(fileName: '.env');
+    envLoaded = true;
+    debugPrint('.env 파일 로드 성공');
+  } catch (e) {
+    debugPrint('.env 파일 로드 실패: $e');
+    // .env 파일 로드 실패 시 기본값 사용 또는 다른 처리 필요
+  }
 
-  final supabaseUrl = dotenv.env['PROD_SUPABASE_URL']!;
-  final supabaseKey = dotenv.env['PROD_SUPABASE_ANON_KEY']!;
+  // Supabase 초기화
+  try {
+    if (envLoaded) {
+      final supabaseUrl = dotenv.env['PROD_SUPABASE_URL'];
+      final supabaseKey = dotenv.env['PROD_SUPABASE_ANON_KEY'];
+      
+      if (supabaseUrl != null && supabaseKey != null) {
+        await initializeDateFormatting('ko_KR');
+        await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
+        debugPrint('Supabase 초기화 성공');
+      } else {
+        debugPrint('Supabase URL 또는 키가 없습니다');
+      }
+    }
+  } catch (e) {
+    debugPrint('Supabase 초기화 중 오류 발생: $e');
+    // Supabase 초기화 실패해도 앱 시작 계속
+  }
 
-  initializeDateFormatting('ko_KR');
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
-  // await Supabase.instance.client.auth.signOut(); // 개발 중에는 주석 처리하거나 필요에 따라 사용
+  // Firebase 초기화
+  try {
+    await Firebase.initializeApp();
+    debugPrint('Firebase 초기화 성공');
+    
+    // 포그라운드 메시지 핸들러 등록
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      debugPrint('포그라운드 메시지 수신: ${message.notification?.title}');
+    });
 
-  // --- 테스트를 위해 리스너 잠시 주석 처리 ---
-  // FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
-  //   debugPrint('FCM 토큰 갱신됨: $newToken');
-  //   await saveFcmTokenToSupabase();
-  // });
-  // ---------------------------------------
+    // 백그라운드/종료 상태에서 알림 클릭 처리
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      debugPrint('알림 클릭으로 앱 열림: ${message.notification?.title}');
+    });
+    
+    // FCM 토큰 저장 시도 - 실패해도 앱 시작에 영향 없음
+    saveFcmTokenToSupabase();
+  } catch (e) {
+    debugPrint('Firebase 초기화 중 오류 발생: $e');
+    // Firebase 초기화 실패해도 앱 시작 계속
+  }
 
-  // 앱 시작 시 FCM 토큰 저장 시도 (이 호출에서 오류가 나는지 확인)
-  debugPrint('main 함수에서 saveFcmTokenToSupabase() 호출 시도...');
-  await saveFcmTokenToSupabase();
-  debugPrint('main 함수 내 saveFcmTokenToSupabase() 호출 완료.');
-
-  // 포그라운드 메시지 핸들러 등록
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    debugPrint('포그라운드 메시지 수신: ${message.notification?.title}');
-    // 여기서 앱 내 알림 표시 로직 구현 가능
-  });
-
-  // 백그라운드/종료 상태에서 알림 클릭 처리
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    debugPrint('알림 클릭으로 앱 열림: ${message.notification?.title}');
-    // 여기서 특정 화면으로 이동하는 로직 구현 가능
-  });
-
+  // 앱 실행
   runApp(const MyApp());
 }
 
